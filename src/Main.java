@@ -1,13 +1,30 @@
-//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
-void main() {
-    //TIP Press <shortcut actionId="ShowIntentionActions"/> with your caret at the highlighted text
-    // to see how IntelliJ IDEA suggests fixing it.
-    IO.println("Hello and welcome!");
+import configuracion.Configuracion;
+import utils.MailVerificationThread;
 
-    for (int i = 1; i <= 5; i++) {
-        //TIP Press <shortcut actionId="Debug"/> to start debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-        // for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.
-        IO.println("i = " + i);
+public class Main {
+    public static void main(String[] args) {
+        System.out.println("==================================================");
+        System.out.println("INICIANDO TECNOEMAILZUZU - GRUPO 16");
+        System.out.println("==================================================");
+
+        // Imprimir configuraciones cargadas desde .env de forma centralizada
+        System.out.println(">>> Configuracion de Base de Datos:");
+        System.out.println("    Host: " + Configuracion.getDbHost() + ":" + Configuracion.getDbPort());
+        System.out.println("    BD:   " + Configuracion.getDbName());
+        System.out.println("    User: " + Configuracion.getDbUser());
+
+        System.out.println("\n>>> Configuracion de Servidor de Correos (SMTP):");
+        System.out.println("    Host: " + Configuracion.getSmtpHost() + ":" + Configuracion.getSmtpPort());
+        System.out.println("    Mail: " + Configuracion.getSmtpMail());
+
+        System.out.println("\n>>> Configuracion de Lectura de Correos (POP3):");
+        System.out.println("    Host: " + Configuracion.getPopHost() + ":" + Configuracion.getPopPort());
+        System.out.println("    User: " + Configuracion.getPopUser());
+        System.out.println("==================================================");
+
+        // Iniciar el hilo de lectura y envío de correos (POP3/SMTP)
+        System.out.println("\n>>> Iniciando Hilo Verificador de Correos...");
+        MailVerificationThread mailThread = new MailVerificationThread();
+        mailThread.start();
     }
 }
