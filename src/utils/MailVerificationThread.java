@@ -100,6 +100,7 @@ public class MailVerificationThread extends Thread {
 
             if (totalMensajes == 0) {
                 // No hay correos por procesar, salir ordenadamente
+                System.out.println("[POP3] No hay correos nuevos en la bandeja.");
                 writer.writeBytes(Command.quit());
                 reader.readLine();
                 return;
