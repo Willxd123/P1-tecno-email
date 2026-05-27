@@ -108,42 +108,42 @@ Muestra el detalle detallado de un perfil.
 
 ---
 
-## 3. Comandos para Gestión de Roles (CRUD Auxiliar)
+## 3. Comandos para Gestión de Roles (Caso de Uso 9 / CRUD Auxiliar)
 
-### A) Registrar Rol (`REGROL` o `REGISTRAR_ROL`)
+### A) Registrar Rol (`CU9-01`, `REGROL` o `REGISTRAR_ROL`)
 * **Parámetros:** `["NombreRol"]`
 * **Ejemplo de Entrada (Asunto):**
-  `REGROL["Repostero"]`
+  `CU9-01["Repostero"]` o `REGROL["Repostero"]`
 * **Ejemplo de Respuesta Visual (HTML):**
   > **🎉 OPERACIÓN EXITOSA**
   > Éxito: Rol 'Repostero' registrado con ID: 4.
 
 ---
 
-### B) Editar Rol (`EDTROL` o `EDITAR_ROL`)
+### B) Editar Rol (`CU9-02`, `EDTROL` o `EDITAR_ROL`)
 * **Parámetros:** `["ID", "NuevoNombre"]`
 * **Ejemplo de Entrada (Asunto):**
-  `EDTROL["4","Repostero Fino"]`
+  `CU9-02["4","Repostero Fino"]` o `EDTROL["4","Repostero Fino"]`
 * **Ejemplo de Respuesta Visual (HTML):**
   > **🎉 OPERACIÓN EXITOSA**
   > Éxito: Rol modificado correctamente. ID: 4 | Nuevo Nombre: Repostero Fino.
 
 ---
 
-### C) Eliminar Rol (`DELROL` o `ELIMINAR_ROL`)
+### C) Eliminar Rol (`CU9-03`, `DELROL` o `ELIMINAR_ROL`)
 * **Parámetros:** `["ID"]`
 * **Ejemplo de Entrada (Asunto):**
-  `DELROL["4"]`
+  `CU9-03["4"]` o `DELROL["4"]`
 * **Ejemplo de Respuesta Visual (HTML):**
   > **🎉 OPERACIÓN EXITOSA**
   > Éxito: Rol con ID 4 (Repostero Fino) eliminado correctamente.
 
 ---
 
-### D) Listar Roles (`LISROL` o `LISTAR_ROLES`)
+### D) Listar Roles (`CU9-04`, `LISROL` o `LISTAR_ROLES`)
 * **Parámetros:** Ninguno.
 * **Ejemplo de Entrada (Asunto):**
-  `LISROL`
+  `CU9-04` o `LISROL`
 * **Ejemplo de Respuesta Visual (HTML):**
   Retorna una tabla visual con el siguiente formato:
 
@@ -155,10 +155,10 @@ Muestra el detalle detallado de un perfil.
 
 ---
 
-### E) Ver Rol (`VERROL` o `VER_ROL`)
+### E) Ver Rol (`CU9-05`, `VERROL` o `VER_ROL`)
 * **Parámetros:** `["ID"]`
 * **Ejemplo de Entrada (Asunto):**
-  `VERROL["2"]`
+  `CU9-05["2"]` o `VERROL["2"]`
 * **Ejemplo de Respuesta Visual (HTML):**
   > **=== DETALLE DEL ROL ===**  
   > ID: 2  

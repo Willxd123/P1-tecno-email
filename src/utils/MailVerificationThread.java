@@ -2,6 +2,13 @@ package utils;
 
 import CapaPresentacion.controllers.RolController;
 import CapaPresentacion.controllers.UsuarioController;
+import CapaPresentacion.controllers.InsumoController;
+import CapaPresentacion.controllers.EnvaseController;
+import CapaPresentacion.controllers.ProductoController;
+import CapaPresentacion.controllers.PedidoController;
+import CapaPresentacion.controllers.CartillaController;
+import CapaPresentacion.controllers.ReporteController;
+import CapaPresentacion.PAyuda;
 import configuracion.Configuracion;
 import utils.analex.Analex;
 
@@ -49,9 +56,7 @@ public class MailVerificationThread extends Thread {
             }
         }
         System.out.println("[MailThread] Hilo de procesamiento de correos detenido.");
-    }
-
-    /**
+    }     /**
      * Se conecta por POP3, descarga los correos, los procesa y los responde.
      */
     private void procesarCorreos() {
@@ -60,6 +65,12 @@ public class MailVerificationThread extends Thread {
         String user = Configuracion.getPopUser();
         String pass = Configuracion.getPopPassword();
 
+        java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss");
+        String timeStr = java.time.LocalTime.now().format(dtf);
+
+        System.out.println("\n[" + timeStr + "] ─── INICIANDO VERIFICACIÓN DE CORREOS ───");
+        System.out.println("[POP3] Conectando a " + host + ":" + port + "...");
+
         try (Socket socket = new Socket(host, port);
              BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
              DataOutputStream writer = new DataOutputStream(socket.getOutputStream())) {
@@ -67,15 +78,17 @@ public class MailVerificationThread extends Thread {
             // Leer respuesta inicial del servidor
             String line = reader.readLine();
             if (line == null || !line.startsWith("+OK")) {
-                System.err.println("[POP3] Error en respuesta inicial: " + line);
+                System.err.println("[POP3] Conexión fallida. Respuesta inicial del servidor: " + line);
                 return;
             }
+            System.out.println("[POP3] Conexión establecida.");
 
             // USER
+            System.out.println("[POP3] Iniciando sesión para el usuario: " + user + "...");
             writer.writeBytes(Command.user(user));
             line = reader.readLine();
             if (!line.startsWith("+OK")) {
-                System.err.println("[POP3] Error en USER: " + line);
+                System.err.println("[POP3] ERROR en comando USER: " + line);
                 return;
             }
 
@@ -83,15 +96,16 @@ public class MailVerificationThread extends Thread {
             writer.writeBytes(Command.pass(pass));
             line = reader.readLine();
             if (!line.startsWith("+OK")) {
-                System.err.println("[POP3] Error en PASS: " + line);
+                System.err.println("[POP3] ERROR en contraseña (PASS): " + line);
                 return;
             }
+            System.out.println("[POP3] Sesión iniciada con éxito.");
 
             // STAT (obtener total de mensajes y tamaño)
             writer.writeBytes(Command.stat());
             line = reader.readLine();
             if (!line.startsWith("+OK")) {
-                System.err.println("[POP3] Error en STAT: " + line);
+                System.err.println("[POP3] ERROR en comando STAT: " + line);
                 return;
             }
 
@@ -99,24 +113,25 @@ public class MailVerificationThread extends Thread {
             int totalMensajes = Integer.parseInt(statParts[1]);
 
             if (totalMensajes == 0) {
-                // No hay correos por procesar, salir ordenadamente
-                System.out.println("[POP3] No hay correos nuevos en la bandeja.");
+                System.out.println("[POP3] Bandeja vacía. No hay correos nuevos por procesar.");
                 writer.writeBytes(Command.quit());
                 reader.readLine();
+                System.out.println("[POP3] Conexión cerrada.");
+                System.out.println("[" + java.time.LocalTime.now().format(dtf) + "] ─── FIN DE LA VERIFICACIÓN ───");
                 return;
             }
 
-            System.out.println("[POP3] Hay " + totalMensajes + " correos nuevos en la bandeja de entrada.");
+            System.out.println("[POP3] Bandeja de entrada: " + totalMensajes + " correo(s) por procesar.");
 
             // Procesar los correos
             for (int i = 1; i <= totalMensajes; i++) {
-                System.out.println("[POP3] Recuperando correo #" + i + "...");
+                System.out.println("\n[POP3] -- Procesando Correo #" + i + " de " + totalMensajes + " --");
                 
                 // RETR
                 writer.writeBytes(Command.retr(i));
                 line = reader.readLine();
                 if (!line.startsWith("+OK")) {
-                    System.err.println("[POP3] Error al recuperar correo #" + i + ": " + line);
+                    System.out.println("  [ERROR] al recuperar correo #" + i + ": " + line);
                     continue;
                 }
 
@@ -134,44 +149,41 @@ public class MailVerificationThread extends Thread {
                 String from = emailObj.getFrom();
                 String subject = emailObj.getSubject();
 
-                System.out.println("[MailThread] Correo recibido de: " + from + " | Asunto: " + subject);
+                System.out.println("  Remitente: " + from);
+                System.out.println("  Asunto: " + subject);
 
-                // Procesar comando
-                String commandName = Analex.getComando(subject);
-                List<String> params = Analex.getParametros(subject);
-
-                // Verificar que el usuario exista (Autenticación por Email) - DESACTIVADO TEMPORALMENTE PARA FACILITAR PRUEBAS
-                boolean emailValido = true;
-                /*
-                if (commandName != null) {
-                    String cmdUpper = commandName.toUpperCase().trim();
-                    // Permitimos el registro (CU1-01) para nuevos usuarios
-                    if (!cmdUpper.equals("CU1-01") && !cmdUpper.equals("REGISTRAR_USUARIO") && !cmdUpper.equals("INSPER")) {
-                        CapaDatos.DUsuarios userAuth = CapaDatos.DUsuarios.obtenerPorEmail(from);
-                        if (userAuth == null) {
-                            emailValido = false;
-                            System.out.println("[MailThread] Correo no registrado en el sistema: " + from);
-                            String errorAuth = "Error de Autenticación: Tu correo (" + from + ") no está registrado en el sistema ZUZU.\n" +
-                                               "No estás autorizado para realizar consultas o peticiones.\n" +
-                                               "Por favor, comunícate con un administrador o regístrate mediante el comando CU1-01.";
-                            boolean sent = enviarRespuestaSMTP(from, subject, errorAuth);
-                            if (sent) {
-                                writer.writeBytes(Command.dele(i));
-                                reader.readLine();
-                            }
-                        }
-                    }
+                // Ignorar correos de respuesta o reenvío para evitar bucles infinitos
+                String subjUpper = subject != null ? subject.toUpperCase().trim() : "";
+                if (subjUpper.startsWith("RE:") || subjUpper.startsWith("FWD:") || subjUpper.startsWith("FW:")) {
+                    System.out.println("  [POP3] Correo omitido por ser una respuesta/reenvío (evita bucles).");
+                    writer.writeBytes(Command.dele(i));
+                    reader.readLine(); // Leer confirmación de DELE
+                    continue;
                 }
 
-                if (!emailValido) {
-                    continue; // Saltar al siguiente correo
-                }
-                */
+                String responseMessage = "";
 
-                String responseMessage = ejecutarComando(commandName, params);
+                // Validar sintaxis y ejecutar
+                try {
+                    Analex.validarSintaxis(subject);
+                    String commandName = Analex.getComando(subject);
+                    List<String> params = Analex.getParametros(subject);
+                    
+                    System.out.println("  Comando detectado: " + commandName + " | Parámetros: " + params);
+                    System.out.println("  Ejecutando controlador...");
+                    responseMessage = ejecutarComando(commandName, params);
+                } catch (IllegalArgumentException e) {
+                    System.out.println("  [ERROR DE SINTAXIS] " + e.getMessage());
+                    responseMessage = "Error: " + e.getMessage() + "\n\n" +
+                                      "Formato esperado:\n" +
+                                      "Para comandos con parámetros: COMANDO[\"param1\", \"param2\", ...]\n" +
+                                      "Ejemplo: INSPER[\"4715292\", \"Juan Carlos\", ...]\n\n" +
+                                      "Para comandos sin parámetros: COMANDO\n" +
+                                      "Ejemplo: HELP";
+                }
 
                 // Enviar respuesta por SMTP
-                System.out.println("[MailThread] Enviando respuesta vía SMTP a " + from + "...");
+                System.out.println("  Enviando respuesta vía SMTP a: " + from + "...");
                 boolean sent = enviarRespuestaSMTP(from, subject, responseMessage);
 
                 if (sent) {
@@ -179,18 +191,21 @@ public class MailVerificationThread extends Thread {
                     writer.writeBytes(Command.dele(i));
                     line = reader.readLine();
                     if (line.startsWith("+OK")) {
-                        System.out.println("[POP3] Correo #" + i + " marcado para eliminación.");
+                        System.out.println("    [POP3] Correo #" + i + " marcado para eliminación.");
                     }
                 }
             }
 
             // QUIT para consolidar eliminaciones
+            System.out.println("\n[POP3] Cerrando sesión y consolidando eliminaciones...");
             writer.writeBytes(Command.quit());
             reader.readLine();
+            System.out.println("[POP3] Conexión cerrada.");
 
         } catch (Exception e) {
-            System.err.println("[MailThread] ERROR en conexión POP3: " + e.getMessage());
+            System.err.println("\n[MailThread] ERROR GENERAL en ciclo POP3: " + e.getMessage());
         }
+        System.out.println("[" + java.time.LocalTime.now().format(dtf) + "] ─── FIN DE LA VERIFICACIÓN ───");
     }
 
     /**
@@ -213,9 +228,39 @@ public class MailVerificationThread extends Thread {
             return RolController.handle(comando, parametros);
         }
 
-        // 3. Ayuda general
+        // 3. Recurso: Insumos
+        if (InsumoController.canHandle(comando)) {
+            return InsumoController.handle(comando, parametros);
+        }
+
+        // 4. Recurso: Envases
+        if (EnvaseController.canHandle(comando)) {
+            return EnvaseController.handle(comando, parametros);
+        }
+
+        // 5. Recurso: Productos/Recetas
+        if (ProductoController.canHandle(comando)) {
+            return ProductoController.handle(comando, parametros);
+        }
+
+        // 6. Recurso: Pedidos/Pagos
+        if (PedidoController.canHandle(comando)) {
+            return PedidoController.handle(comando, parametros);
+        }
+
+        // 7. Recurso: Cartilla
+        if (CartillaController.canHandle(comando)) {
+            return CartillaController.handle(comando, parametros);
+        }
+
+        // 8. Recurso: Reportes
+        if (ReporteController.canHandle(comando)) {
+            return ReporteController.handle(comando, parametros);
+        }
+
+        // 9. Ayuda general
         if (comando.equals("HELP") || comando.equals("AYUDA")) {
-            return obtenerAyuda();
+            return PAyuda.generarHtml();
         }
 
         return "Error: Comando '" + comando + "' no reconocido por el sistema.\n" +
@@ -236,32 +281,42 @@ public class MailVerificationThread extends Thread {
 
             // Respuesta de bienvenida del servidor
             String line = reader.readLine();
-            System.out.println("[SMTP-DEBUG] Bienvenida: " + line);
-            if (line == null || !line.startsWith("220")) return false;
+            if (line == null || !line.startsWith("220")) {
+                System.err.println("    [SMTP] ERROR de bienvenida: " + line);
+                return false;
+            }
 
             // HELO
             writer.writeBytes("HELO mail.tecnoweb.org.bo" + END);
             line = reader.readLine();
-            System.out.println("[SMTP-DEBUG] HELO: " + line);
-            if (line == null || !line.startsWith("250")) return false;
+            if (line == null || !line.startsWith("250")) {
+                System.err.println("    [SMTP] ERROR en HELO: " + line);
+                return false;
+            }
 
             // MAIL FROM
             writer.writeBytes("MAIL FROM:<" + remitente + ">" + END);
             line = reader.readLine();
-            System.out.println("[SMTP-DEBUG] MAIL FROM: " + line);
-            if (line == null || !line.startsWith("250")) return false;
+            if (line == null || !line.startsWith("250")) {
+                System.err.println("    [SMTP] ERROR en MAIL FROM: " + line);
+                return false;
+            }
 
             // RCPT TO
             writer.writeBytes("RCPT TO:<" + destinatario + ">" + END);
             line = reader.readLine();
-            System.out.println("[SMTP-DEBUG] RCPT TO: " + line);
-            if (line == null || !line.startsWith("250")) return false;
+            if (line == null || !line.startsWith("250")) {
+                System.err.println("    [SMTP] ERROR en RCPT TO: " + line);
+                return false;
+            }
 
             // DATA
             writer.writeBytes("DATA" + END);
             line = reader.readLine();
-            System.out.println("[SMTP-DEBUG] DATA: " + line);
-            if (line == null || !line.startsWith("354")) return false;
+            if (line == null || !line.startsWith("354")) {
+                System.err.println("    [SMTP] ERROR en DATA: " + line);
+                return false;
+            }
 
             // Cuerpo del mensaje (Cabeceras + Contenido)
             writer.writeBytes("From: " + remitente + END);
@@ -286,50 +341,23 @@ public class MailVerificationThread extends Thread {
             // Fin de DATA
             writer.writeBytes(END + "." + END);
             line = reader.readLine();
-            System.out.println("[SMTP-DEBUG] FIN DATA: " + line);
-            if (line == null || !line.startsWith("250")) return false;
+            if (line == null || !line.startsWith("250")) {
+                System.out.println("    [SMTP] ERROR al finalizar DATA: " + line);
+                return false;
+            }
 
             // QUIT
             writer.writeBytes("QUIT" + END);
             line = reader.readLine();
-            System.out.println("[SMTP-DEBUG] QUIT: " + line);
 
+            System.out.println("    [SMTP] Respuesta SMTP enviada y aceptada por el servidor.");
             return true;
 
         } catch (Exception e) {
-            System.err.println("[SMTP] ERROR al enviar correo: " + e.getMessage());
+            System.out.println("    [SMTP] ERROR al enviar correo: " + e.getMessage());
             return false;
         }
     }
 
-    private String obtenerAyuda() {
-        return "=== COMANDOS DISPONIBLES (GESTIÓN DE USUARIOS - CU1) ===\n\n" +
-               "1. Registrar Usuario:\n" +
-               "   Asunto: CU1-01[\"Nombre\",\"Apellido\",\"Telefono\",\"Email\",\"Password\",\"Rol\"]\n" +
-               "   Roles válidos: Propietario, Secretaria, Cliente\n\n" +
-               "2. Editar Usuario:\n" +
-               "   Asunto: CU1-02[\"ID\",\"Nombre\",\"Apellido\",\"Telefono\",\"Email\"]\n\n" +
-               "3. Cambiar Contraseña:\n" +
-               "   Asunto: CU1-03[\"ID\",\"NuevaPassword\"]\n\n" +
-               "4. Desactivar Usuario:\n" +
-               "   Asunto: CU1-04[\"ID\"]\n\n" +
-               "5. Listar Usuarios:\n" +
-               "   Asunto: CU1-05\n\n" +
-               "6. Buscar Usuario:\n" +
-               "   Asunto: CU1-06[\"TextoABuscar\"]\n\n" +
-               "7. Ver Perfil Propio:\n" +
-               "   Asunto: CU1-07[\"ID\"]\n\n" +
-               "=== GESTIÓN DE ROLES (AUXILIAR) ===\n\n" +
-               "8. Registrar Rol:\n" +
-               "   Asunto: REGROL[\"NombreRol\"]\n\n" +
-               "9. Editar Rol:\n" +
-               "   Asunto: EDTROL[\"ID\",\"NuevoNombre\"]\n\n" +
-               "10. Eliminar Rol:\n" +
-               "   Asunto: DELROL[\"ID\"]\n\n" +
-               "11. Listar Roles:\n" +
-               "   Asunto: LISROL\n\n" +
-               "12. Ver Rol:\n" +
-               "   Asunto: VERROL[\"ID\"]\n\n" +
-               "Nota: Puedes enviar los parámetros con comillas y comas o con corchetes múltiples.";
-    }
+
 }

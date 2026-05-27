@@ -142,6 +142,20 @@ Consultas gerenciales para toma de decisiones. Solo disponibles para el propieta
 
 ---
 
+## CU9 — Gestión de Roles
+
+Administración de roles (roles de usuario) en el sistema.
+
+| Código | Nombre | Propietario | Secretario | Cliente | Descripción |
+|---|---|---|---|---|---|
+| CU9-01 | Registrar rol | ✓ | — | — | Registrar un nuevo rol en el sistema |
+| CU9-02 | Editar rol | ✓ | — | — | Modificar el nombre de un rol existente |
+| CU9-03 | Eliminar rol | ✓ | — | — | Eliminar un rol que no esté en uso |
+| CU9-04 | Listar roles | ✓ | — | — | Ver todos los roles disponibles |
+| CU9-05 | Ver rol | ✓ | — | — | Consultar los detalles de un rol |
+
+---
+
 ## Matriz general de acceso
 
 | Módulo | Propietario | Secretario | Cliente |
@@ -154,3 +168,4 @@ Consultas gerenciales para toma de decisiones. Solo disponibles para el propieta
 | CU6 Gestión de pedidos | Acceso total | Acceso total | Solo ver propios |
 | CU7 Gestión de pagos | Acceso total | Acceso total | Solo ver propios |
 | CU8 Reportes y estadísticas | Acceso total | Solo stock crítico | Sin acceso |
+| CU9 Gestión de roles | Acceso total | Sin acceso | Sin acceso |
