@@ -236,27 +236,32 @@ public class MailVerificationThread extends Thread {
 
             // Respuesta de bienvenida del servidor
             String line = reader.readLine();
-            if (!line.startsWith("220")) return false;
+            System.out.println("[SMTP-DEBUG] Bienvenida: " + line);
+            if (line == null || !line.startsWith("220")) return false;
 
             // HELO
             writer.writeBytes("HELO mail.tecnoweb.org.bo" + END);
             line = reader.readLine();
-            if (!line.startsWith("250")) return false;
+            System.out.println("[SMTP-DEBUG] HELO: " + line);
+            if (line == null || !line.startsWith("250")) return false;
 
             // MAIL FROM
             writer.writeBytes("MAIL FROM:<" + remitente + ">" + END);
             line = reader.readLine();
-            if (!line.startsWith("250")) return false;
+            System.out.println("[SMTP-DEBUG] MAIL FROM: " + line);
+            if (line == null || !line.startsWith("250")) return false;
 
             // RCPT TO
             writer.writeBytes("RCPT TO:<" + destinatario + ">" + END);
             line = reader.readLine();
-            if (!line.startsWith("250")) return false;
+            System.out.println("[SMTP-DEBUG] RCPT TO: " + line);
+            if (line == null || !line.startsWith("250")) return false;
 
             // DATA
             writer.writeBytes("DATA" + END);
             line = reader.readLine();
-            if (!line.startsWith("354")) return false;
+            System.out.println("[SMTP-DEBUG] DATA: " + line);
+            if (line == null || !line.startsWith("354")) return false;
 
             // Cuerpo del mensaje (Cabeceras + Contenido)
             writer.writeBytes("From: " + remitente + END);
@@ -268,24 +273,26 @@ public class MailVerificationThread extends Thread {
             if (contenido.trim().startsWith("<!DOCTYPE html>") || contenido.trim().startsWith("<html>")) {
                 writer.writeBytes("Content-Type: text/html; charset=UTF-8" + END);
                 writer.writeBytes(END); // Separador cabecera-cuerpo
-                writer.writeBytes(contenido);
+                writer.writeBytes(contenido.replace("\r\n", "\n").replace("\n", "\r\n"));
             } else {
                 writer.writeBytes("Content-Type: text/plain; charset=UTF-8" + END);
                 writer.writeBytes(END); // Separador cabecera-cuerpo
-                writer.writeBytes("--- RESPUESTA AUTOMÁTICA DEL SISTEMA (GRUPO 16) ---\n\n");
-                writer.writeBytes(contenido);
-                writer.writeBytes("\n\n-------------------------------------------------\n");
-                writer.writeBytes("TecnoEmailZUZU v1.0 - Repostería Automatizada\n");
+                writer.writeBytes("--- RESPUESTA AUTOMÁTICA DEL SISTEMA (GRUPO 16) ---" + END + END);
+                writer.writeBytes(contenido.replace("\r\n", "\n").replace("\n", "\r\n"));
+                writer.writeBytes(END + END + "-------------------------------------------------" + END);
+                writer.writeBytes("TecnoEmailZUZU v1.0 - Repostería Automatizada" + END);
             }
             
             // Fin de DATA
             writer.writeBytes(END + "." + END);
             line = reader.readLine();
-            if (!line.startsWith("250")) return false;
+            System.out.println("[SMTP-DEBUG] FIN DATA: " + line);
+            if (line == null || !line.startsWith("250")) return false;
 
             // QUIT
             writer.writeBytes("QUIT" + END);
-            reader.readLine();
+            line = reader.readLine();
+            System.out.println("[SMTP-DEBUG] QUIT: " + line);
 
             return true;
 
