@@ -127,4 +127,19 @@ public class DInsumos {
         }
         return null;
     }
+
+    public static List<DInsumos> listarStockCritico() throws SQLException {
+        List<DInsumos> lista = new ArrayList<>();
+        String sql = "SELECT * FROM insumos WHERE stock_actual < stock_minimo ORDER BY (stock_actual - stock_minimo) ASC";
+        try (Connection conn = Conexion.getConexion();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                lista.add(new DInsumos(rs.getInt("id"), rs.getString("nombre"),
+                    UnidadMedida.valueOf(rs.getString("unidad_medida")), rs.getDouble("stock_actual"),
+                    rs.getDouble("stock_minimo"), rs.getDouble("costo_unitario")));
+            }
+        }
+        return lista;
+    }
 }

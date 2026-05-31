@@ -111,4 +111,19 @@ public class DPagos {
         }
         return null;
     }
+
+    public static DPagos obtenerPorId(int id) throws SQLException {
+        String sql = "SELECT * FROM pagos WHERE id = ?";
+        try (Connection conn = Conexion.getConexion();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new DPagos(rs.getInt("id"), rs.getTimestamp("fecha"),
+                        TipoPago.valueOf(rs.getString("tipo_pago")), rs.getInt("pedido_id"));
+                }
+            }
+        }
+        return null;
+    }
 }

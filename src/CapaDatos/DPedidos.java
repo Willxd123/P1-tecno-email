@@ -119,4 +119,53 @@ public class DPedidos {
         }
         return null;
     }
+
+    public static List<DPedidos> listarPorUsuario(int usuarioId) throws SQLException {
+        List<DPedidos> lista = new ArrayList<>();
+        String sql = "SELECT * FROM pedidos WHERE usuario_id = ? ORDER BY fecha DESC";
+        try (Connection conn = Conexion.getConexion();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, usuarioId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    lista.add(new DPedidos(rs.getInt("id"), rs.getTimestamp("fecha"),
+                        EstadoPedido.valueOf(rs.getString("estado")), rs.getDouble("total"), rs.getInt("usuario_id")));
+                }
+            }
+        }
+        return lista;
+    }
+
+    public static List<DPedidos> listarPorEstado(String estado) throws SQLException {
+        List<DPedidos> lista = new ArrayList<>();
+        String sql = "SELECT * FROM pedidos WHERE estado = ?::varchar ORDER BY fecha DESC";
+        try (Connection conn = Conexion.getConexion();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, estado);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    lista.add(new DPedidos(rs.getInt("id"), rs.getTimestamp("fecha"),
+                        EstadoPedido.valueOf(rs.getString("estado")), rs.getDouble("total"), rs.getInt("usuario_id")));
+                }
+            }
+        }
+        return lista;
+    }
+
+    public static List<DPedidos> listarPorFechas(java.sql.Timestamp inicio, java.sql.Timestamp fin) throws SQLException {
+        List<DPedidos> lista = new ArrayList<>();
+        String sql = "SELECT * FROM pedidos WHERE fecha BETWEEN ? AND ? ORDER BY fecha DESC";
+        try (Connection conn = Conexion.getConexion();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setTimestamp(1, inicio);
+            ps.setTimestamp(2, fin);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    lista.add(new DPedidos(rs.getInt("id"), rs.getTimestamp("fecha"),
+                        EstadoPedido.valueOf(rs.getString("estado")), rs.getDouble("total"), rs.getInt("usuario_id")));
+                }
+            }
+        }
+        return lista;
+    }
 }

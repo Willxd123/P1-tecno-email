@@ -1,5 +1,13 @@
 package utils;
 
+import CapaPresentacion.controllers.CartillaController;
+import CapaPresentacion.controllers.EnvaseController;
+import CapaPresentacion.controllers.InsumoController;
+import CapaPresentacion.controllers.PagoController;
+import CapaPresentacion.controllers.PedidoController;
+import CapaPresentacion.controllers.ProductoController;
+import CapaPresentacion.controllers.ReporteController;
+import CapaPresentacion.PlantillaBase;
 import CapaPresentacion.controllers.RolController;
 import CapaPresentacion.controllers.UsuarioController;
 import configuracion.Configuracion;
@@ -100,7 +108,6 @@ public class MailVerificationThread extends Thread {
 
             if (totalMensajes == 0) {
                 // No hay correos por procesar, salir ordenadamente
-                System.out.println("[POP3] No hay correos nuevos en la bandeja.");
                 writer.writeBytes(Command.quit());
                 reader.readLine();
                 return;
@@ -213,7 +220,42 @@ public class MailVerificationThread extends Thread {
             return RolController.handle(comando, parametros);
         }
 
-        // 3. Ayuda general
+        // 3. CU2: Insumos y Recetas
+        if (InsumoController.canHandle(comando)) {
+            return InsumoController.handle(comando, parametros);
+        }
+
+        // 4. CU3: Envases
+        if (EnvaseController.canHandle(comando)) {
+            return EnvaseController.handle(comando, parametros);
+        }
+
+        // 5. CU4: Cartilla del Cliente
+        if (CartillaController.canHandle(comando)) {
+            return CartillaController.handle(comando, parametros);
+        }
+
+        // 6. CU5: Ventas / Productos
+        if (ProductoController.canHandle(comando)) {
+            return ProductoController.handle(comando, parametros);
+        }
+
+        // 7. CU6: Pedidos
+        if (PedidoController.canHandle(comando)) {
+            return PedidoController.handle(comando, parametros);
+        }
+
+        // 8. CU7: Pagos
+        if (PagoController.canHandle(comando)) {
+            return PagoController.handle(comando, parametros);
+        }
+
+        // 9. CU8: Reportes
+        if (ReporteController.canHandle(comando)) {
+            return ReporteController.handle(comando, parametros);
+        }
+
+        // 10. Ayuda general
         if (comando.equals("HELP") || comando.equals("AYUDA")) {
             return obtenerAyuda();
         }
@@ -236,32 +278,27 @@ public class MailVerificationThread extends Thread {
 
             // Respuesta de bienvenida del servidor
             String line = reader.readLine();
-            System.out.println("[SMTP-DEBUG] Bienvenida: " + line);
-            if (line == null || !line.startsWith("220")) return false;
+            if (!line.startsWith("220")) return false;
 
             // HELO
             writer.writeBytes("HELO mail.tecnoweb.org.bo" + END);
             line = reader.readLine();
-            System.out.println("[SMTP-DEBUG] HELO: " + line);
-            if (line == null || !line.startsWith("250")) return false;
+            if (!line.startsWith("250")) return false;
 
             // MAIL FROM
             writer.writeBytes("MAIL FROM:<" + remitente + ">" + END);
             line = reader.readLine();
-            System.out.println("[SMTP-DEBUG] MAIL FROM: " + line);
-            if (line == null || !line.startsWith("250")) return false;
+            if (!line.startsWith("250")) return false;
 
             // RCPT TO
             writer.writeBytes("RCPT TO:<" + destinatario + ">" + END);
             line = reader.readLine();
-            System.out.println("[SMTP-DEBUG] RCPT TO: " + line);
-            if (line == null || !line.startsWith("250")) return false;
+            if (!line.startsWith("250")) return false;
 
             // DATA
             writer.writeBytes("DATA" + END);
             line = reader.readLine();
-            System.out.println("[SMTP-DEBUG] DATA: " + line);
-            if (line == null || !line.startsWith("354")) return false;
+            if (!line.startsWith("354")) return false;
 
             // Cuerpo del mensaje (Cabeceras + Contenido)
             writer.writeBytes("From: " + remitente + END);
@@ -273,26 +310,24 @@ public class MailVerificationThread extends Thread {
             if (contenido.trim().startsWith("<!DOCTYPE html>") || contenido.trim().startsWith("<html>")) {
                 writer.writeBytes("Content-Type: text/html; charset=UTF-8" + END);
                 writer.writeBytes(END); // Separador cabecera-cuerpo
-                writer.writeBytes(contenido.replace("\r\n", "\n").replace("\n", "\r\n"));
+                writer.writeBytes(contenido);
             } else {
                 writer.writeBytes("Content-Type: text/plain; charset=UTF-8" + END);
                 writer.writeBytes(END); // Separador cabecera-cuerpo
-                writer.writeBytes("--- RESPUESTA AUTOMÁTICA DEL SISTEMA (GRUPO 16) ---" + END + END);
-                writer.writeBytes(contenido.replace("\r\n", "\n").replace("\n", "\r\n"));
-                writer.writeBytes(END + END + "-------------------------------------------------" + END);
-                writer.writeBytes("TecnoEmailZUZU v1.0 - Repostería Automatizada" + END);
+                writer.writeBytes("--- RESPUESTA AUTOMÁTICA DEL SISTEMA (GRUPO 16) ---\n\n");
+                writer.writeBytes(contenido);
+                writer.writeBytes("\n\n-------------------------------------------------\n");
+                writer.writeBytes("TecnoEmailZUZU v1.0 - Repostería Automatizada\n");
             }
             
             // Fin de DATA
             writer.writeBytes(END + "." + END);
             line = reader.readLine();
-            System.out.println("[SMTP-DEBUG] FIN DATA: " + line);
-            if (line == null || !line.startsWith("250")) return false;
+            if (!line.startsWith("250")) return false;
 
             // QUIT
             writer.writeBytes("QUIT" + END);
-            line = reader.readLine();
-            System.out.println("[SMTP-DEBUG] QUIT: " + line);
+            reader.readLine();
 
             return true;
 
@@ -303,33 +338,103 @@ public class MailVerificationThread extends Thread {
     }
 
     private String obtenerAyuda() {
-        return "=== COMANDOS DISPONIBLES (GESTIÓN DE USUARIOS - CU1) ===\n\n" +
-               "1. Registrar Usuario:\n" +
-               "   Asunto: CU1-01[\"Nombre\",\"Apellido\",\"Telefono\",\"Email\",\"Password\",\"Rol\"]\n" +
-               "   Roles válidos: Propietario, Secretaria, Cliente\n\n" +
-               "2. Editar Usuario:\n" +
-               "   Asunto: CU1-02[\"ID\",\"Nombre\",\"Apellido\",\"Telefono\",\"Email\"]\n\n" +
-               "3. Cambiar Contraseña:\n" +
-               "   Asunto: CU1-03[\"ID\",\"NuevaPassword\"]\n\n" +
-               "4. Desactivar Usuario:\n" +
-               "   Asunto: CU1-04[\"ID\"]\n\n" +
-               "5. Listar Usuarios:\n" +
-               "   Asunto: CU1-05\n\n" +
-               "6. Buscar Usuario:\n" +
-               "   Asunto: CU1-06[\"TextoABuscar\"]\n\n" +
-               "7. Ver Perfil Propio:\n" +
-               "   Asunto: CU1-07[\"ID\"]\n\n" +
-               "=== GESTIÓN DE ROLES (AUXILIAR) ===\n\n" +
-               "8. Registrar Rol:\n" +
-               "   Asunto: REGROL[\"NombreRol\"]\n\n" +
-               "9. Editar Rol:\n" +
-               "   Asunto: EDTROL[\"ID\",\"NuevoNombre\"]\n\n" +
-               "10. Eliminar Rol:\n" +
-               "   Asunto: DELROL[\"ID\"]\n\n" +
-               "11. Listar Roles:\n" +
-               "   Asunto: LISROL\n\n" +
-               "12. Ver Rol:\n" +
-               "   Asunto: VERROL[\"ID\"]\n\n" +
-               "Nota: Puedes enviar los parámetros con comillas y comas o con corchetes múltiples.";
+        String contenido =
+            "<h2 class=\"card-title\">Referencia de Comandos del Sistema</h2>" +
+            "<p style=\"color:#61381c;font-size:13px;margin-bottom:20px;\">Envía el comando en el <strong>Asunto</strong> del correo a <strong>grupo16sc@tecnoweb.org.bo</strong>.<br>" +
+            "Formato: <code>COMANDO[\"param1\",\"param2\"]</code> &nbsp;|&nbsp; Si el comando es incorrecto recibirás un mensaje de error descriptivo.</p>" +
+            seccionAyuda("CU1 — Gestión de Usuarios", new String[][]{
+                {"CU1_01 / INSPER", "[\"Nombre\",\"Apellido\",\"Tel\",\"Email\",\"Pass\",\"Rol\"]", "Registrar nuevo usuario. Roles: Propietario, Secretaria, Cliente"},
+                {"CU1_02 / EDITAR_USUARIO", "[\"ID\",\"Nombre\",\"Apellido\",\"Tel\",\"Email\"]", "Editar datos personales de un usuario"},
+                {"CU1_03 / CAMBIAR_PASSWORD", "[\"ID\",\"NuevaPass\"]", "Cambiar contraseña (mín. 6 caracteres)"},
+                {"CU1_04 / DESACTIVAR_USUARIO", "[\"ID\"]", "Desactivar usuario sin eliminarlo"},
+                {"CU1_05 / LISPER", "", "Listar todos los usuarios del sistema"},
+                {"CU1_06 / BUSCAR_USUARIO", "[\"Texto\"]", "Buscar por nombre, apellido o teléfono"},
+                {"CU1_07 / VER_PERFIL", "[\"ID\"]", "Ver perfil completo de un usuario"}
+            }) +
+            seccionAyuda("CU2 — Insumos y Recetas", new String[][]{
+                {"CU2_01 / REGINSM", "[\"nombre\",\"unidad\",\"stock_ini\",\"stock_min\",\"costo\"]", "Registrar insumo. Unidades: kg, g, l, ml, unidad"},
+                {"CU2_02 / EDTINSM", "[\"id\",\"nombre\",\"costo\",\"stock_min\"]", "Editar nombre, costo o stock mínimo de un insumo"},
+                {"CU2_03 / LISINSM", "", "Listar todos los insumos con estado de stock"},
+                {"CU2_04 / ENTINSM", "[\"id\",\"cantidad\",\"descripcion\"]", "Registrar entrada de stock (compra/reposición)"},
+                {"CU2_05 / AJUINSM", "[\"id\",\"cant_nueva\",\"descripcion\"]", "Ajustar stock a un valor exacto (corrección)"},
+                {"CU2_06 / MERINSM", "[\"id\",\"cantidad\",\"descripcion\"]", "Registrar merma o pérdida de insumo"},
+                {"CU2_07 / HISINSM", "[\"insumo_id\"]", "Ver historial de movimientos de un insumo"},
+                {"CU2_08 / ALEREP", "", "Ver insumos con stock por debajo del mínimo"},
+                {"CU2_09 / REGREC", "[\"prod_id\",\"nombre\",\"desc\",\"ins_id:cant\",...]", "Registrar receta de un producto"},
+                {"CU2_10 / EDTREC", "[\"receta_id\",\"ins_id:cant\",...]", "Reemplazar insumos de una receta existente"},
+                {"CU2_11 / VERREC", "[\"producto_id\"]", "Ver receta e ingredientes de un producto"}
+            }) +
+            seccionAyuda("CU3 — Gestión de Envases", new String[][]{
+                {"CU3_01 / REGENV", "[\"nombre\",\"descripcion\",\"stock_total\"]", "Registrar nuevo tipo de envase reutilizable"},
+                {"CU3_02 / EDTENV", "[\"id\",\"nombre\",\"descripcion\"]", "Editar datos de un tipo de envase"},
+                {"CU3_03 / LISENV", "", "Ver stock total, disponible y prestados de cada envase"},
+                {"CU3_04 / PRESENV", "[\"pedido_id\",\"envase_id\",\"cantidad\"]", "Registrar préstamo de envases al entregar un pedido"},
+                {"CU3_05 / DEVENV", "[\"pedido_origen_id\",\"envase_id\",\"cantidad\"]", "Registrar devolución de envases"},
+                {"CU3_06 / PENDENV", "", "Ver todos los envases sin devolver por cliente"},
+                {"CU3_07 / HISENV", "[\"usuario_id\"]", "Ver historial de préstamos/devoluciones de un cliente"}
+            }) +
+            seccionAyuda("CU4 — Cartilla del Cliente", new String[][]{
+                {"CU4_01 / CARTILLA", "[\"usuario_id\"]", "Ver historial completo de pedidos de un cliente"},
+                {"CU4_02 / BUSCART", "[\"texto\"]", "Buscar cliente por nombre/apellido para ver su cartilla"},
+                {"CU4_03 / DETCART", "[\"pedido_id\"]", "Ver desglose de productos y precios de un pedido"},
+                {"CU4_04 / CUOTACART", "[\"pedido_id\"]", "Ver cuotas y estados de pago de un pedido"},
+                {"CU4_05 / ENVCART", "[\"pedido_id\"]", "Ver envases prestados y devueltos de un pedido"}
+            }) +
+            seccionAyuda("CU5 — Gestión de Productos", new String[][]{
+                {"CU5_01 / REGPRO", "[\"nombre\",\"descripcion\",\"precio_unitario\"]", "Registrar nuevo producto al catálogo"},
+                {"CU5_02 / EDTPRO", "[\"id\",\"nombre\",\"descripcion\",\"precio\"]", "Editar datos de un producto"},
+                {"CU5_03 / TOGPRO", "[\"id\"]", "Activar o desactivar un producto del catálogo"},
+                {"CU5_04 / LISPRO", "", "Listar todos los productos con precios y disponibilidad"},
+                {"CU5_05 / COSTPRO", "[\"producto_id\"]", "Ver costo de producción y margen de un producto"},
+                {"CU5_06 / DISPRO", "[\"producto_id\",\"cantidad\"]", "Verificar si hay insumos suficientes para producir N unidades"}
+            }) +
+            seccionAyuda("CU6 — Gestión de Pedidos", new String[][]{
+                {"CU6_01 / CRPEDIDO", "[\"usr_id\",\"contado\",\"prod_id:cant\",...]", "Crear pedido al contado. Ej: CRPEDIDO[\"1\",\"contado\",\"10:2\",\"11:1\"]"},
+                {"CU6_01 / CRPEDIDO", "[\"usr_id\",\"cuotas\",\"n\",\"f1;f2\",\"prod:cant\",...]", "Crear pedido en cuotas. Ej: CRPEDIDO[\"1\",\"cuotas\",\"2\",\"2026-07-01;2026-08-01\",\"10:1\"]"},
+                {"CU6_02 / DETPEDIDO", "[\"pedido_id\"]", "Ver detalle completo de un pedido"},
+                {"CU6_03 / LISPEDIDO", "[filtro_opcional]", "Listar pedidos. Filtro: usuario_id ó estado (pendiente/pagado/entregado/cancelado)"},
+                {"CU6_04 / EDTPEDIDO", "[\"pedido_id\",\"estado\"]", "Cambiar estado. Estados: pendiente, pagado, entregado, cancelado"},
+                {"CU6_05 / CELPEDIDO", "[\"pedido_id\"]", "Cancelar pedido y restaurar stock de insumos"},
+                {"CU6_06 / ENTPEDIDO", "[\"pedido_id\"]", "Confirmar entrega del pedido"}
+            }) +
+            seccionAyuda("CU7 — Gestión de Pagos", new String[][]{
+                {"CU7_01 / PAGCONTADO", "[\"pedido_id\"]", "Confirmar recepción de pago al contado → pedido pasa a 'pagado'"},
+                {"CU7_02 / PAGCUOTAS", "[\"pedido_id\",\"num_cuotas\",\"fecha1;fecha2;...\"]", "Configurar plan de cuotas para un pedido"},
+                {"CU7_03 / PAGCUOTA", "[\"cuota_id\"]", "Marcar una cuota como pagada"},
+                {"CU7_04 / VISCUOTAS", "[\"pedido_id\"]", "Ver todas las cuotas de un pedido"},
+                {"CU7_05 / CUOVENC", "", "Ver cuotas vencidas y sin pagar de todos los clientes"},
+                {"CU7_06 / CUOPROX", "[\"dias\"]", "Ver cuotas que vencen en los próximos N días"},
+                {"CU7_07 / RESPAGCLI", "[\"usuario_id\"]", "Ver resumen de pagos de un cliente"}
+            }) +
+            seccionAyuda("CU8 — Reportes y Estadísticas", new String[][]{
+                {"CU8_01 / REPVENTAS", "[\"YYYY-MM-DD\",\"YYYY-MM-DD\"]", "Reporte de ventas en un período"},
+                {"CU8_02 / REPINGRES", "[\"YYYY-MM-DD\",\"YYYY-MM-DD\"]", "Ingresos contado vs crédito en un período"},
+                {"CU8_03 / REPCUOPEND", "", "Total de cuotas pendientes por cobrar"},
+                {"CU8_04 / REPCONINS", "[\"YYYY-MM-DD\",\"YYYY-MM-DD\"]", "Consumo de insumos en un período"},
+                {"CU8_05 / REPCOSTO", "[\"YYYY-MM-DD\",\"YYYY-MM-DD\"]", "Costo de producción vs ingresos (margen)"},
+                {"CU8_06 / REPSTOCK", "", "Insumos con stock por debajo del mínimo"},
+                {"CU8_07 / REPENVPRES", "", "Envases actualmente prestados a clientes"},
+                {"CU8_08 / REPCLIFRE", "[\"YYYY-MM-DD\",\"YYYY-MM-DD\"]", "Ranking de clientes más frecuentes"},
+                {"CU8_09 / REPPROVEND", "[\"YYYY-MM-DD\",\"YYYY-MM-DD\"]", "Ranking de productos más vendidos"}
+            }) +
+            "<p style=\"font-size:12px;color:#8c7b70;margin-top:20px;\">&#9888; Si recibes un error, el mensaje indicará exactamente qué parámetro es incorrecto o falta.</p>";
+
+        return PlantillaBase.construirPlantillaBase("Ayuda - Repostería ZUZU", contenido);
+    }
+
+    private String seccionAyuda(String titulo, String[][] filas) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<h3 style=\"color:#8b5a2b;font-size:15px;margin:20px 0 8px;\">").append(titulo).append("</h3>");
+        sb.append("<table>");
+        sb.append("<tr><th>Comando</th><th>Parámetros</th><th>Descripción</th></tr>");
+        for (String[] fila : filas) {
+            sb.append("<tr>")
+              .append("<td style=\"font-family:monospace;font-size:12px;white-space:nowrap;\">").append(fila[0]).append("</td>")
+              .append("<td style=\"font-family:monospace;font-size:11px;color:#61381c;\">").append(fila[1]).append("</td>")
+              .append("<td>").append(fila[2]).append("</td>")
+              .append("</tr>");
+        }
+        sb.append("</table>");
+        return sb.toString();
     }
 }

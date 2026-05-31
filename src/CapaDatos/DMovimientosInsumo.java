@@ -128,4 +128,38 @@ public class DMovimientosInsumo {
         }
         return lista;
     }
+
+    public static List<DMovimientosInsumo> listarPorPedido(int pedidoId) throws SQLException {
+        List<DMovimientosInsumo> lista = new ArrayList<>();
+        String sql = "SELECT * FROM movimientos_insumo WHERE pedido_id = ? ORDER BY fecha DESC";
+        try (Connection conn = Conexion.getConexion();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, pedidoId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Integer pId = rs.getInt("pedido_id"); if (rs.wasNull()) pId = null;
+                    lista.add(new DMovimientosInsumo(rs.getInt("id"), rs.getTimestamp("fecha"),
+                        TipoMovimientoInsumo.valueOf(rs.getString("tipo")), rs.getDouble("cantidad"),
+                        rs.getString("descripcion"), rs.getInt("insumo_id"), pId));
+                }
+            }
+        }
+        return lista;
+    }
+
+    public static List<DMovimientosInsumo> listarTodos() throws SQLException {
+        List<DMovimientosInsumo> lista = new ArrayList<>();
+        String sql = "SELECT * FROM movimientos_insumo ORDER BY fecha DESC";
+        try (Connection conn = Conexion.getConexion();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Integer pId = rs.getInt("pedido_id"); if (rs.wasNull()) pId = null;
+                lista.add(new DMovimientosInsumo(rs.getInt("id"), rs.getTimestamp("fecha"),
+                    TipoMovimientoInsumo.valueOf(rs.getString("tipo")), rs.getDouble("cantidad"),
+                    rs.getString("descripcion"), rs.getInt("insumo_id"), pId));
+            }
+        }
+        return lista;
+    }
 }

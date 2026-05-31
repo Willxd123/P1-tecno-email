@@ -5,6 +5,7 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,7 +57,11 @@ public class DCuotas {
             ps.setInt(1, this.numero_cuota);
             ps.setDouble(2, this.monto_cuota);
             ps.setDate(3, this.fecha_vencimiento);
-            ps.setDate(4, this.fecha_pago);
+            if (this.fecha_pago != null) {
+                ps.setDate(4, this.fecha_pago);
+            } else {
+                ps.setNull(4, Types.DATE);
+            }
             ps.setBoolean(5, this.pagado);
             ps.setInt(6, this.pago_id);
             try (ResultSet rs = ps.executeQuery()) {
@@ -110,6 +115,51 @@ public class DCuotas {
                         rs.getBoolean("pagado"),
                         rs.getInt("pago_id")
                     ));
+                }
+            }
+        }
+        return lista;
+    }
+
+    public static DCuotas obtenerPorId(int id) throws SQLException {
+        String sql = "SELECT * FROM cuotas WHERE id = ?";
+        try (Connection conn = Conexion.getConexion();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new DCuotas(rs.getInt("id"), rs.getInt("numero_cuota"), rs.getDouble("monto_cuota"),
+                        rs.getDate("fecha_vencimiento"), rs.getDate("fecha_pago"), rs.getBoolean("pagado"), rs.getInt("pago_id"));
+                }
+            }
+        }
+        return null;
+    }
+
+    public static List<DCuotas> listarVencidas() throws SQLException {
+        List<DCuotas> lista = new ArrayList<>();
+        String sql = "SELECT * FROM cuotas WHERE fecha_vencimiento < CURRENT_DATE AND pagado = FALSE ORDER BY fecha_vencimiento ASC";
+        try (Connection conn = Conexion.getConexion();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                lista.add(new DCuotas(rs.getInt("id"), rs.getInt("numero_cuota"), rs.getDouble("monto_cuota"),
+                    rs.getDate("fecha_vencimiento"), rs.getDate("fecha_pago"), rs.getBoolean("pagado"), rs.getInt("pago_id")));
+            }
+        }
+        return lista;
+    }
+
+    public static List<DCuotas> listarProximasAVencer(int dias) throws SQLException {
+        List<DCuotas> lista = new ArrayList<>();
+        String sql = "SELECT * FROM cuotas WHERE fecha_vencimiento BETWEEN CURRENT_DATE AND CURRENT_DATE + ? AND pagado = FALSE ORDER BY fecha_vencimiento ASC";
+        try (Connection conn = Conexion.getConexion();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, dias);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    lista.add(new DCuotas(rs.getInt("id"), rs.getInt("numero_cuota"), rs.getDouble("monto_cuota"),
+                        rs.getDate("fecha_vencimiento"), rs.getDate("fecha_pago"), rs.getBoolean("pagado"), rs.getInt("pago_id")));
                 }
             }
         }

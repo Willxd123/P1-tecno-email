@@ -207,4 +207,36 @@ public class DPedidoEnvase {
         }
         return lista;
     }
+
+    public static List<DPedidoEnvase> listarPendientes() throws SQLException {
+        List<DPedidoEnvase> lista = new ArrayList<>();
+        String sql = "SELECT * FROM pedido_envase WHERE cantidad_devuelta < cantidad_prestada ORDER BY id ASC";
+        try (Connection conn = Conexion.getConexion();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Integer devId = rs.getInt("pedido_devolucion_id"); if (rs.wasNull()) devId = null;
+                lista.add(new DPedidoEnvase(rs.getInt("id"), rs.getInt("cantidad_prestada"), rs.getInt("cantidad_devuelta"),
+                    rs.getTimestamp("fecha_devolucion"), rs.getInt("pedido_origen_id"), devId, rs.getInt("envase_id")));
+            }
+        }
+        return lista;
+    }
+
+    public static List<DPedidoEnvase> listarPorUsuario(int usuarioId) throws SQLException {
+        List<DPedidoEnvase> lista = new ArrayList<>();
+        String sql = "SELECT pe.* FROM pedido_envase pe JOIN pedidos p ON pe.pedido_origen_id = p.id WHERE p.usuario_id = ? ORDER BY pe.id ASC";
+        try (Connection conn = Conexion.getConexion();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, usuarioId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Integer devId = rs.getInt("pedido_devolucion_id"); if (rs.wasNull()) devId = null;
+                    lista.add(new DPedidoEnvase(rs.getInt("id"), rs.getInt("cantidad_prestada"), rs.getInt("cantidad_devuelta"),
+                        rs.getTimestamp("fecha_devolucion"), rs.getInt("pedido_origen_id"), devId, rs.getInt("envase_id")));
+                }
+            }
+        }
+        return lista;
+    }
 }

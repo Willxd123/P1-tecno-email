@@ -118,4 +118,18 @@ public class DProductos {
         }
         return null;
     }
+
+    public static List<DProductos> listarDisponibles() throws SQLException {
+        List<DProductos> lista = new ArrayList<>();
+        String sql = "SELECT * FROM productos WHERE disponible = TRUE ORDER BY id ASC";
+        try (Connection conn = Conexion.getConexion();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                lista.add(new DProductos(rs.getInt("id"), rs.getString("nombre"), rs.getString("descripcion"),
+                    rs.getDouble("precio_unitario"), rs.getBoolean("disponible")));
+            }
+        }
+        return lista;
+    }
 }
