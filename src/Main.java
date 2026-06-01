@@ -1,5 +1,6 @@
 import configuracion.Configuracion;
 import utils.MailVerificationThread;
+import CapaDatos.DatabaseInitializer;
 
 public class Main {
     public static void main(String[] args) {
@@ -7,8 +8,11 @@ public class Main {
         System.out.println("INICIANDO TECNOEMAILZUZU - GRUPO 16");
         System.out.println("==================================================");
 
+        // Inicializar la base de datos de forma automática (migraciones/schema)
+        DatabaseInitializer.initializeDatabase();
+
         // Imprimir configuraciones cargadas desde .env de forma centralizada
-        System.out.println(">>> Configuracion de Base de Datos:");
+        System.out.println("\n>>> Configuracion de Base de Datos:");
         System.out.println("    Host: " + Configuracion.getDbHost() + ":" + Configuracion.getDbPort());
         System.out.println("    BD:   " + Configuracion.getDbName());
         System.out.println("    User: " + Configuracion.getDbUser());

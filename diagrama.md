@@ -189,6 +189,7 @@ Almacena los datos personales y credenciales de quienes realizan pedidos.
 | `email`     | `VARCHAR(120)` | Correo electrónico, usado para login y consultas       | NOT NULL, UNIQUE             |
 | `password`  | `VARCHAR(255)` | Hash bcrypt/argon2 de la contraseña. Nunca texto plano | NOT NULL                     |
 | `rol_id` FK | `INT`          | Rol asignado al usuario                                | NOT NULL → `roles(id)`       |
+| `activo`    | `BOOLEAN`      | Indica si el usuario está activo o dado de baja        | NOT NULL, DEFAULT TRUE       |
 
 ---
 
