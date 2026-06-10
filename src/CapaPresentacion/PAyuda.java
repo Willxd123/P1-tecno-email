@@ -118,7 +118,8 @@ public class PAyuda {
                "<body>\n" +
                "  <div class=\"container\">\n" +
                "    <div class=\"header\">\n" +
-               "      <h1>🍰 SISTEMA DE REPOSTERÍA ZUZU - GUÍA DE COMANDOS 🍰</h1>\n" +
+               "      <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuzú Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">\n" +
+               "      <h1>🍰 SISTEMA DE “CHIFONES PERUANOS ZUZÚ” - GUÍA DE COMANDOS 🍰</h1>\n" +
                "      <p>Manual de Sintaxis de Casos de Uso y Operaciones CRUD vía Correo</p>\n" +
                "    </div>\n" +
                "    <div class=\"content\">\n" +

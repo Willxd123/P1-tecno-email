@@ -1,6 +1,6 @@
 # Manual de Usuario — Gestión por Correo Electrónico (Grupo 16)
 
-Este manual describe el formato de entrada, las reglas de sintaxis y los comandos soportados para la administración y control del sistema **TecnoEmailZUZU** a través de correo electrónico utilizando el asunto (Subject).
+Este manual describe el formato de entrada, las reglas de sintaxis y los comandos soportados para la administración y control del sistema **“CHIFONES PERUANOS ZUZÚ”** a través de correo electrónico utilizando el asunto (Subject).
 
 ---
 

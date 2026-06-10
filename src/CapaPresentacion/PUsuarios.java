@@ -8,7 +8,7 @@ public class PUsuarios {
      * Convierte el resultado plano del negocio de Usuarios en una vista HTML espectacular.
      */
     public static String generarHtml(String comando, String resultado) {
-        String tituloModulo = "Gestión de Usuarios - Repostería ZUZU";
+        String tituloModulo = "Gestión de Usuarios - “CHIFONES PERUANOS ZUZÚ”";
         StringBuilder bodyHtml = new StringBuilder();
 
         boolean esError = resultado.trim().toLowerCase().startsWith("error");
@@ -233,7 +233,8 @@ public class PUsuarios {
                "<body>\n" +
                "  <div class=\"container\">\n" +
                "    <div class=\"header\">\n" +
-               "      <h1>🍰 REPOSTERÍA ZUZU 🍰</h1>\n" +
+               "      <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuzú Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">\n" +
+               "      <h1>🍰 “CHIFONES PERUANOS ZUZÚ” 🍰</h1>\n" +
                "      <p>Sistema Automatizado por Correo Electrónico</p>\n" +
                "    </div>\n" +
                "    <div class=\"content\">\n" +

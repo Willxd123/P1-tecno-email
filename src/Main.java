@@ -1,5 +1,5 @@
 import configuracion.Configuracion;
-import utils.MailVerificationThread;
+import utils.HiloVerificacionCorreo;
 
 public class Main {
     public static void main(String[] args) {
@@ -22,9 +22,10 @@ public class Main {
         System.out.println("    User: " + Configuracion.getPopUser());
         System.out.println("==================================================");
 
-        // Iniciar el hilo de lectura y envío de correos (POP3/SMTP)
+        // Iniciar el hilo de lectura y envÃƒÂ­o de correos (POP3/SMTP)
         System.out.println("\n>>> Iniciando Hilo Verificador de Correos...");
-        MailVerificationThread mailThread = new MailVerificationThread();
+        HiloVerificacionCorreo mailThread = new HiloVerificacionCorreo();
         mailThread.start();
     }
 }
+

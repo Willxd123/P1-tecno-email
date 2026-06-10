@@ -1,4 +1,4 @@
-## Casos de uso — Sistema de repostería
+## Casos de uso — Sistema de Gestión para “CHIFONES PERUANOS ZUZÚ”
 
 ---
 

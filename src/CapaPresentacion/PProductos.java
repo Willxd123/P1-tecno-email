@@ -3,7 +3,7 @@ package CapaPresentacion;
 public class PProductos {
 
     public static String generarHtml(String comando, String resultado) {
-        String tituloModulo = "Gestión de Catálogo y Recetas - Repostería ZUZU";
+        String tituloModulo = "Gestión de Catálogo y Recetas - “CHIFONES PERUANOS ZUZÚ”";
         StringBuilder bodyHtml = new StringBuilder();
 
         boolean esError = resultado.trim().toLowerCase().startsWith("error");
@@ -223,6 +223,7 @@ public class PProductos {
                "<body>\n" +
                "  <div class=\"container\">\n" +
                "    <div class=\"header\">\n" +
+               "      <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuzú Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">\n" +
                "      <h1>🎂 PRODUCTOS Y RECETAS 🎂</h1>\n" +
                "      <p>Sistema Automatizado por Correo Electrónico</p>\n" +
                "    </div>\n" +

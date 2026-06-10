@@ -3,7 +3,7 @@ package CapaPresentacion;
 public class PCartillas {
 
     public static String generarHtml(String comando, String resultado) {
-        String tituloModulo = "Cartilla Digital del Cliente - Repostería ZUZU";
+        String tituloModulo = "Cartilla Digital del Cliente - “CHIFONES PERUANOS ZUZÚ”";
         StringBuilder bodyHtml = new StringBuilder();
 
         boolean esError = resultado.trim().toLowerCase().startsWith("error");
@@ -221,6 +221,7 @@ public class PCartillas {
                "<body>\n" +
                "  <div class=\"container\">\n" +
                "    <div class=\"header\">\n" +
+               "      <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuzú Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">\n" +
                "      <h1>📂 CARTILLA DIGITAL DEL CLIENTE 📂</h1>\n" +
                "      <p>Historial Consolidado de Pedidos y Envases</p>\n" +
                "    </div>\n" +

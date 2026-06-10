@@ -1,13 +1,13 @@
 package utils;
 
-import CapaPresentacion.controllers.RolController;
-import CapaPresentacion.controllers.UsuarioController;
-import CapaPresentacion.controllers.InsumoController;
-import CapaPresentacion.controllers.EnvaseController;
-import CapaPresentacion.controllers.ProductoController;
-import CapaPresentacion.controllers.PedidoController;
-import CapaPresentacion.controllers.CartillaController;
-import CapaPresentacion.controllers.ReporteController;
+import CapaPresentacion.controladores.RolControlador;
+import CapaPresentacion.controladores.UsuarioControlador;
+import CapaPresentacion.controladores.InsumoControlador;
+import CapaPresentacion.controladores.EnvaseControlador;
+import CapaPresentacion.controladores.ProductoControlador;
+import CapaPresentacion.controladores.PedidoControlador;
+import CapaPresentacion.controladores.CartillaControlador;
+import CapaPresentacion.controladores.ReporteControlador;
 import CapaPresentacion.PAyuda;
 import configuracion.Configuracion;
 import utils.analex.Analex;
@@ -20,17 +20,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Hilo principal de verificación y procesamiento de correos vía Sockets TCP puros.
- * Se conecta a POP3 (puerto 110) para leer comandos y responde vía SMTP (puerto 25).
+ * Hilo principal de verificaciÃ³n y procesamiento de correos vÃ­a Sockets TCP puros.
+ * Se conecta a POP3 (puerto 110) para leer comandos y responde vÃ­a SMTP (puerto 25).
  */
-public class MailVerificationThread extends Thread {
+public class HiloVerificacionCorreo extends Thread {
 
     private static final String END = "\r\n";
     private boolean running = true;
     private final int sleepIntervalMs = 10000; // 10 segundos
 
-    public MailVerificationThread() {
-        super("MailVerificationThread");
+    public HiloVerificacionCorreo() {
+        super("HiloVerificacionCorreo");
     }
 
     public void detener() {
@@ -68,7 +68,7 @@ public class MailVerificationThread extends Thread {
         java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss");
         String timeStr = java.time.LocalTime.now().format(dtf);
 
-        System.out.println("\n[" + timeStr + "] ─── INICIANDO VERIFICACIÓN DE CORREOS ───");
+        System.out.println("\n[" + timeStr + "] â”€â”€â”€ INICIANDO VERIFICACIÃ“N DE CORREOS â”€â”€â”€");
         System.out.println("[POP3] Conectando a " + host + ":" + port + "...");
 
         try (Socket socket = new Socket(host, port);
@@ -78,14 +78,14 @@ public class MailVerificationThread extends Thread {
             // Leer respuesta inicial del servidor
             String line = reader.readLine();
             if (line == null || !line.startsWith("+OK")) {
-                System.err.println("[POP3] Conexión fallida. Respuesta inicial del servidor: " + line);
+                System.err.println("[POP3] ConexiÃ³n fallida. Respuesta inicial del servidor: " + line);
                 return;
             }
-            System.out.println("[POP3] Conexión establecida.");
+            System.out.println("[POP3] ConexiÃ³n establecida.");
 
             // USER
-            System.out.println("[POP3] Iniciando sesión para el usuario: " + user + "...");
-            writer.writeBytes(Command.user(user));
+            System.out.println("[POP3] Iniciando sesiÃ³n para el usuario: " + user + "...");
+            writer.writeBytes(Comando.user(user));
             line = reader.readLine();
             if (!line.startsWith("+OK")) {
                 System.err.println("[POP3] ERROR en comando USER: " + line);
@@ -93,16 +93,16 @@ public class MailVerificationThread extends Thread {
             }
 
             // PASS
-            writer.writeBytes(Command.pass(pass));
+            writer.writeBytes(Comando.pass(pass));
             line = reader.readLine();
             if (!line.startsWith("+OK")) {
-                System.err.println("[POP3] ERROR en contraseña (PASS): " + line);
+                System.err.println("[POP3] ERROR en contraseÃ±a (PASS): " + line);
                 return;
             }
-            System.out.println("[POP3] Sesión iniciada con éxito.");
+            System.out.println("[POP3] SesiÃ³n iniciada con Ã©xito.");
 
-            // STAT (obtener total de mensajes y tamaño)
-            writer.writeBytes(Command.stat());
+            // STAT (obtener total de mensajes y tamaÃ±o)
+            writer.writeBytes(Comando.stat());
             line = reader.readLine();
             if (!line.startsWith("+OK")) {
                 System.err.println("[POP3] ERROR en comando STAT: " + line);
@@ -113,11 +113,11 @@ public class MailVerificationThread extends Thread {
             int totalMensajes = Integer.parseInt(statParts[1]);
 
             if (totalMensajes == 0) {
-                System.out.println("[POP3] Bandeja vacía. No hay correos nuevos por procesar.");
-                writer.writeBytes(Command.quit());
+                System.out.println("[POP3] Bandeja vacÃ­a. No hay correos nuevos por procesar.");
+                writer.writeBytes(Comando.quit());
                 reader.readLine();
-                System.out.println("[POP3] Conexión cerrada.");
-                System.out.println("[" + java.time.LocalTime.now().format(dtf) + "] ─── FIN DE LA VERIFICACIÓN ───");
+                System.out.println("[POP3] ConexiÃ³n cerrada.");
+                System.out.println("[" + java.time.LocalTime.now().format(dtf) + "] â”€â”€â”€ FIN DE LA VERIFICACIÃ“N â”€â”€â”€");
                 return;
             }
 
@@ -128,14 +128,14 @@ public class MailVerificationThread extends Thread {
                 System.out.println("\n[POP3] -- Procesando Correo #" + i + " de " + totalMensajes + " --");
                 
                 // RETR
-                writer.writeBytes(Command.retr(i));
+                writer.writeBytes(Comando.retr(i));
                 line = reader.readLine();
                 if (!line.startsWith("+OK")) {
                     System.out.println("  [ERROR] al recuperar correo #" + i + ": " + line);
                     continue;
                 }
 
-                // Leer todo el cuerpo del correo hasta la línea con un único punto "."
+                // Leer todo el cuerpo del correo hasta la lÃ­nea con un Ãºnico punto "."
                 StringBuilder rawMail = new StringBuilder();
                 while ((line = reader.readLine()) != null) {
                     if (line.equals(".")) {
@@ -145,19 +145,19 @@ public class MailVerificationThread extends Thread {
                 }
 
                 // Extraer datos usando Extractor
-                Email emailObj = Extractor.getEmail(rawMail.toString());
-                String from = emailObj.getFrom();
-                String subject = emailObj.getSubject();
+                Correo CorreoObj = Extractor.getCorreo(rawMail.toString());
+                String from = CorreoObj.getFrom();
+                String subject = CorreoObj.getSubject();
 
                 System.out.println("  Remitente: " + from);
                 System.out.println("  Asunto: " + subject);
 
-                // Ignorar correos de respuesta o reenvío para evitar bucles infinitos
+                // Ignorar correos de respuesta o reenvÃ­o para evitar bucles infinitos
                 String subjUpper = subject != null ? subject.toUpperCase().trim() : "";
                 if (subjUpper.startsWith("RE:") || subjUpper.startsWith("FWD:") || subjUpper.startsWith("FW:")) {
-                    System.out.println("  [POP3] Correo omitido por ser una respuesta/reenvío (evita bucles).");
-                    writer.writeBytes(Command.dele(i));
-                    reader.readLine(); // Leer confirmación de DELE
+                    System.out.println("  [POP3] Correo omitido por ser una respuesta/reenvÃ­o (evita bucles).");
+                    writer.writeBytes(Comando.dele(i));
+                    reader.readLine(); // Leer confirmaciÃ³n de DELE
                     continue;
                 }
 
@@ -166,96 +166,96 @@ public class MailVerificationThread extends Thread {
                 // Validar sintaxis y ejecutar
                 try {
                     Analex.validarSintaxis(subject);
-                    String commandName = Analex.getComando(subject);
+                    String ComandoName = Analex.getComando(subject);
                     List<String> params = Analex.getParametros(subject);
                     
-                    System.out.println("  Comando detectado: " + commandName + " | Parámetros: " + params);
+                    System.out.println("  Comando detectado: " + ComandoName + " | ParÃ¡metros: " + params);
                     System.out.println("  Ejecutando controlador...");
-                    responseMessage = ejecutarComando(commandName, params);
+                    responseMessage = ejecutarComando(ComandoName, params);
                 } catch (IllegalArgumentException e) {
                     System.out.println("  [ERROR DE SINTAXIS] " + e.getMessage());
                     responseMessage = "Error: " + e.getMessage() + "\n\n" +
                                       "Formato esperado:\n" +
-                                      "Para comandos con parámetros: COMANDO[\"param1\", \"param2\", ...]\n" +
+                                      "Para comandos con parÃ¡metros: COMANDO[\"param1\", \"param2\", ...]\n" +
                                       "Ejemplo: INSPER[\"4715292\", \"Juan Carlos\", ...]\n\n" +
-                                      "Para comandos sin parámetros: COMANDO\n" +
+                                      "Para comandos sin parÃ¡metros: COMANDO\n" +
                                       "Ejemplo: HELP";
                 }
 
                 // Enviar respuesta por SMTP
-                System.out.println("  Enviando respuesta vía SMTP a: " + from + "...");
+                System.out.println("  Enviando respuesta vÃ­a SMTP a: " + from + "...");
                 boolean sent = enviarRespuestaSMTP(from, subject, responseMessage);
 
                 if (sent) {
-                    // Si se procesó y respondió bien, marcar para eliminar
-                    writer.writeBytes(Command.dele(i));
+                    // Si se procesÃ³ y respondiÃ³ bien, marcar para eliminar
+                    writer.writeBytes(Comando.dele(i));
                     line = reader.readLine();
                     if (line.startsWith("+OK")) {
-                        System.out.println("    [POP3] Correo #" + i + " marcado para eliminación.");
+                        System.out.println("    [POP3] Correo #" + i + " marcado para eliminaciÃ³n.");
                     }
                 }
             }
 
             // QUIT para consolidar eliminaciones
-            System.out.println("\n[POP3] Cerrando sesión y consolidando eliminaciones...");
-            writer.writeBytes(Command.quit());
+            System.out.println("\n[POP3] Cerrando sesiÃ³n y consolidando eliminaciones...");
+            writer.writeBytes(Comando.quit());
             reader.readLine();
-            System.out.println("[POP3] Conexión cerrada.");
+            System.out.println("[POP3] ConexiÃ³n cerrada.");
 
         } catch (Exception e) {
             System.err.println("\n[MailThread] ERROR GENERAL en ciclo POP3: " + e.getMessage());
         }
-        System.out.println("[" + java.time.LocalTime.now().format(dtf) + "] ─── FIN DE LA VERIFICACIÓN ───");
+        System.out.println("[" + java.time.LocalTime.now().format(dtf) + "] â”€â”€â”€ FIN DE LA VERIFICACIÃ“N â”€â”€â”€");
     }
 
     /**
-     * Enrutador de comandos hacia los controladores específicos de cada recurso.
+     * Enrutador de comandos hacia los controladores especÃ­ficos de cada recurso.
      */
     private String ejecutarComando(String comando, List<String> parametros) {
         if (comando == null || comando.trim().isEmpty()) {
-            return "Error: Asunto vacío. Por favor envíe un comando válido.";
+            return "Error: Asunto vacÃ­o. Por favor envÃ­e un comando vÃ¡lido.";
         }
 
         comando = comando.toUpperCase().trim();
 
         // 1. Recurso: Usuarios
-        if (UsuarioController.canHandle(comando)) {
-            return UsuarioController.handle(comando, parametros);
+        if (UsuarioControlador.canHandle(comando)) {
+            return UsuarioControlador.handle(comando, parametros);
         }
 
         // 2. Recurso: Roles
-        if (RolController.canHandle(comando)) {
-            return RolController.handle(comando, parametros);
+        if (RolControlador.canHandle(comando)) {
+            return RolControlador.handle(comando, parametros);
         }
 
         // 3. Recurso: Insumos
-        if (InsumoController.canHandle(comando)) {
-            return InsumoController.handle(comando, parametros);
+        if (InsumoControlador.canHandle(comando)) {
+            return InsumoControlador.handle(comando, parametros);
         }
 
         // 4. Recurso: Envases
-        if (EnvaseController.canHandle(comando)) {
-            return EnvaseController.handle(comando, parametros);
+        if (EnvaseControlador.canHandle(comando)) {
+            return EnvaseControlador.handle(comando, parametros);
         }
 
         // 5. Recurso: Productos/Recetas
-        if (ProductoController.canHandle(comando)) {
-            return ProductoController.handle(comando, parametros);
+        if (ProductoControlador.canHandle(comando)) {
+            return ProductoControlador.handle(comando, parametros);
         }
 
         // 6. Recurso: Pedidos/Pagos
-        if (PedidoController.canHandle(comando)) {
-            return PedidoController.handle(comando, parametros);
+        if (PedidoControlador.canHandle(comando)) {
+            return PedidoControlador.handle(comando, parametros);
         }
 
         // 7. Recurso: Cartilla
-        if (CartillaController.canHandle(comando)) {
-            return CartillaController.handle(comando, parametros);
+        if (CartillaControlador.canHandle(comando)) {
+            return CartillaControlador.handle(comando, parametros);
         }
 
         // 8. Recurso: Reportes
-        if (ReporteController.canHandle(comando)) {
-            return ReporteController.handle(comando, parametros);
+        if (ReporteControlador.canHandle(comando)) {
+            return ReporteControlador.handle(comando, parametros);
         }
 
         // 9. Ayuda general
@@ -264,11 +264,11 @@ public class MailVerificationThread extends Thread {
         }
 
         return "Error: Comando '" + comando + "' no reconocido por el sistema.\n" +
-               "Envíe 'HELP' en el Asunto para ver la lista de comandos disponibles.";
+               "EnvÃ­e 'HELP' en el Asunto para ver la lista de comandos disponibles.";
     }
 
     /**
-     * Envía un correo electrónico utilizando sockets TCP puros en el puerto 25.
+     * EnvÃ­a un correo electrÃ³nico utilizando sockets TCP puros en el puerto 25.
      */
     private boolean enviarRespuestaSMTP(String destinatario, String subjectOriginal, String contenido) {
         String host = Configuracion.getSmtpHost();
@@ -324,7 +324,7 @@ public class MailVerificationThread extends Thread {
             writer.writeBytes("Subject: Re: " + subjectOriginal + END);
             writer.writeBytes("MIME-Version: 1.0" + END);
             
-            // Cuerpo (Detección dinámica HTML vs Texto Plano)
+            // Cuerpo (DetecciÃ³n dinÃ¡mica HTML vs Texto Plano)
             if (contenido.trim().startsWith("<!DOCTYPE html>") || contenido.trim().startsWith("<html>")) {
                 writer.writeBytes("Content-Type: text/html; charset=UTF-8" + END);
                 writer.writeBytes(END); // Separador cabecera-cuerpo
@@ -332,10 +332,10 @@ public class MailVerificationThread extends Thread {
             } else {
                 writer.writeBytes("Content-Type: text/plain; charset=UTF-8" + END);
                 writer.writeBytes(END); // Separador cabecera-cuerpo
-                writer.writeBytes("--- RESPUESTA AUTOMÁTICA DEL SISTEMA (GRUPO 16) ---" + END + END);
+                writer.writeBytes("--- RESPUESTA AUTOMÃTICA DEL SISTEMA (GRUPO 16) ---" + END + END);
                 writer.writeBytes(contenido.replace("\r\n", "\n").replace("\n", "\r\n"));
                 writer.writeBytes(END + END + "-------------------------------------------------" + END);
-                writer.writeBytes("TecnoEmailZUZU v1.0 - Repostería Automatizada" + END);
+                writer.writeBytes("TecnoCorreoZUZU v1.0 - ReposterÃ­a Automatizada" + END);
             }
             
             // Fin de DATA
@@ -361,3 +361,4 @@ public class MailVerificationThread extends Thread {
 
 
 }
+

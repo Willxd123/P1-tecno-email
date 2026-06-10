@@ -3,7 +3,7 @@ package CapaPresentacion;
 public class PReportes {
 
     public static String generarHtml(String comando, String resultado) {
-        String tituloModulo = "Reportes Estadísticos y Gerenciales - Repostería ZUZU";
+        String tituloModulo = "Reportes Estadísticos y Gerenciales - “CHIFONES PERUANOS ZUZÚ”";
         StringBuilder bodyHtml = new StringBuilder();
 
         boolean esError = resultado.trim().toLowerCase().startsWith("error");
@@ -235,6 +235,7 @@ public class PReportes {
                "<body>\n" +
                "  <div class=\"container\">\n" +
                "    <div class=\"header\">\n" +
+               "      <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuzú Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">\n" +
                "      <h1>📊 REPORTE DE GESTIÓN GERENCIAL 📊</h1>\n" +
                "      <p>Módulo de Inteligencia de Negocio y Estadísticas</p>\n" +
                "    </div>\n" +
