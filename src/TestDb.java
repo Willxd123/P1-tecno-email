@@ -45,7 +45,7 @@ public class TestDb {
                     System.out.println("   * " + cols.getString("COLUMN_NAME") + " (" + cols.getString("TYPE_NAME") + ")");
                 }
             }
-            
+
             Conexion.cerrarConexion();
         } catch (Exception e) {
             System.err.println("DB Connection failed: " + e.getMessage());

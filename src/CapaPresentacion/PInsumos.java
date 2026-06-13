@@ -16,7 +16,7 @@ public class PInsumos {
         } else {
             // Mensaje simple
             String alertClass = esError ? "alert-error" : "alert-success";
-            String alertTitle = esError ? "⚠️ ADVERTENCIA / ERROR" : "🎉 OPERACIÓN EXITOSA";
+            String alertTitle = esError ? "ADVERTENCIA / ERROR" : "OPERACIÓN EXITOSA";
             
             bodyHtml.append("<div class=\"alert ").append(alertClass).append("\">")
                     .append("<strong>").append(alertTitle).append("</strong><br>")
@@ -229,7 +229,7 @@ public class PInsumos {
                "  <div class=\"container\">\n" +
                "    <div class=\"header\">\n" +
                "      <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuzú Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">\n" +
-               "      <h1>🌾 INVENTARIO DE INSUMOS 🌾</h1>\n" +
+               "      <h1>INVENTARIO DE INSUMOS</h1>\n" +
                "      <p>Sistema Automatizado por Correo Electrónico</p>\n" +
                "    </div>\n" +
                "    <div class=\"content\">\n" +

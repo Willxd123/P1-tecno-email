@@ -11,9 +11,12 @@ import CapaDatos.DRecetaDetalle;
 import CapaDatos.DInsumos;
 import CapaDatos.DMovimientosInsumo;
 import CapaDatos.DUsuarios;
+import CapaDatos.DEnvases;
+import CapaDatos.DPedidoEnvase;
 import CapaDatos.enums.EstadoPedido;
 import CapaDatos.enums.TipoPago;
 import CapaDatos.enums.TipoMovimientoInsumo;
+import utils.PagoFacilService;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -119,7 +122,7 @@ public class NPedidos {
             DPedidos pedido = new DPedidos();
             pedido.setUsuario_id(clienteId);
             pedido.setTotal(total);
-            pedido.setEstado(tipoPago == TipoPago.contado ? EstadoPedido.pagado : EstadoPedido.pendiente);
+            pedido.setEstado(EstadoPedido.pendiente); // Ambos inician como pendiente hasta que se pague
 
             if (!pedido.insertar()) {
                 conn.rollback();
@@ -138,6 +141,46 @@ public class NPedidos {
                 return "Error: No se pudo crear el detalle del pedido.";
             }
 
+            // Registrar Préstamo de Envase Automático (1 envase por cada producto comprado)
+            // Se prioriza el envase ID 2 (Tupper Domo Transparente), sino se usa el primero del catálogo
+            int defaultEnvaseId = 2;
+            DEnvases env = DEnvases.obtenerPorId(defaultEnvaseId);
+            if (env == null) {
+                List<DEnvases> listaEnvases = DEnvases.listar();
+                if (!listaEnvases.isEmpty()) {
+                    env = listaEnvases.get(0);
+                    defaultEnvaseId = env.getId();
+                }
+            }
+
+            if (env != null) {
+                int cantidadPrestada = cantidad;
+                if (env.getStock_disponible() < cantidadPrestada) {
+                    conn.rollback();
+                    return "Error: Inventario de envases insuficiente. Disponible: " + env.getStock_disponible() + ", Requerido: " + cantidadPrestada;
+                }
+                
+                // Descontar inventario disponible
+                env.setStock_disponible(env.getStock_disponible() - cantidadPrestada);
+                if (!env.modificar()) {
+                    conn.rollback();
+                    return "Error: No se pudo actualizar el inventario del envase.";
+                }
+
+                DPedidoEnvase pe = new DPedidoEnvase();
+                pe.setPedido_origen_id(pedido.getId());
+                pe.setEnvase_id(defaultEnvaseId);
+                pe.setCantidad_prestada(cantidadPrestada);
+                pe.setCantidad_devuelta(0);
+                pe.setFecha_devolucion(null);
+                pe.setPedido_devolucion_id(null);
+
+                if (!pe.insertar()) {
+                    conn.rollback();
+                    return "Error: No se pudo registrar el préstamo del envase.";
+                }
+            }
+
             // Registrar Pago
             DPagos pago = new DPagos();
             pago.setPedido_id(pedido.getId());
@@ -147,6 +190,9 @@ public class NPedidos {
                 conn.rollback();
                 return "Error: No se pudo registrar el pago.";
             }
+
+            int cuota1Id = -1;
+            double cuota1Monto = 0.0;
 
             // Generar Cuotas si corresponde
             if (tipoPago == TipoPago.cuotas) {
@@ -167,11 +213,49 @@ public class NPedidos {
                         conn.rollback();
                         return "Error: No se pudo generar el plan de cuotas.";
                     }
+
+                    if (c == 1) {
+                        cuota1Id = cuota.getId();
+                        cuota1Monto = cuota.getMonto_cuota();
+                    }
                 }
             }
 
+            // Generar QR de pago a través de PagoFacil
+            String qrBase64 = null;
+            String companyTxId = "";
+            double amountToPay = 0.0;
+            String txType = "";
+
+            if (tipoPago == TipoPago.contado) {
+                companyTxId = "PED-" + pedido.getId();
+                amountToPay = total;
+                txType = "contado";
+            } else {
+                companyTxId = "CUO-" + cuota1Id;
+                amountToPay = cuota1Monto;
+                txType = "cuotas";
+            }
+
+            String desc = "Pedido de " + cantidad + " " + producto.getNombre();
+            qrBase64 = PagoFacilService.generarQR(
+                cliente.getNombre() + " " + cliente.getApellido(),
+                cliente.getTelefono(),
+                cliente.getEmail(),
+                companyTxId,
+                amountToPay,
+                desc
+            );
+
+            if (qrBase64 == null) {
+                conn.rollback();
+                return "Error: No se pudo generar el código QR de PagoFacil. Por favor, intente de nuevo.";
+            }
+
+            // Registrar transacción en el archivo JSON
+            PagoFacilService.registrarTransaccion(companyTxId, cliente.getEmail(), amountToPay, txType);
+
             // Enlazar el pedido_id en los movimientos de insumos creados anteriormente
-            // (Mediante una sentencia de actualización simple)
             String updateMovSql = "UPDATE movimientos_insumo SET pedido_id = ? WHERE pedido_id IS NULL AND tipo = 'consumo'";
             try (PreparedStatement ps = conn.prepareStatement(updateMovSql)) {
                 ps.setInt(1, pedido.getId());
@@ -179,9 +263,22 @@ public class NPedidos {
             }
 
             conn.commit();
-            conn.setAutoCommit(true);
 
-            return "Éxito: Pedido registrado correctamente con ID " + pedido.getId() + " por un total de " + total + " Bs.";
+            // Retornar mensaje con la imagen del QR incrustada en HTML
+            StringBuilder sb = new StringBuilder();
+            sb.append("Pedido registrado correctamente con ID ").append(pedido.getId()).append(" por un total de ").append(total).append(" Bs.<br><br>");
+            sb.append("<div style=\"text-align: center; margin: 15px 0;\">");
+            if (tipoPago == TipoPago.contado) {
+                sb.append("<strong style=\"color: #047857; font-size: 15px;\">ESCANEA EL SIGUIENTE QR PARA PAGAR EL TOTAL DEL PEDIDO:</strong><br><br>");
+            } else {
+                sb.append("<strong style=\"color: #047857; font-size: 15px;\">ESCANEA EL SIGUIENTE QR PARA PAGAR LA CUOTA 1 (CONFIRMAR PEDIDO):</strong><br><br>");
+            }
+            sb.append("<img src=\"data:image/png;base64,").append(qrBase64).append("\" style=\"max-width: 250px; border: 4px solid #047857; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);\"><br><br>");
+            sb.append("<span style=\"font-weight: bold; font-size: 16px; color: #047857;\">Monto a Pagar: ").append(amountToPay).append(" Bs.</span><br>");
+            sb.append("<span style=\"color: #6b7280; font-size: 12px;\">Transacción ID: ").append(companyTxId).append("</span>");
+            sb.append("</div>");
+
+            return sb.toString();
 
         } catch (NumberFormatException e) {
             return "Error: Los IDs, cantidad y cuotas deben ser numéricos enteros.";
@@ -190,6 +287,10 @@ public class NPedidos {
                 try { conn.rollback(); } catch (SQLException rollbackEx) { /* Ignorar */ }
             }
             return "Error en BD durante la transacción: " + e.getMessage();
+        } finally {
+            if (conn != null) {
+                try { conn.setAutoCommit(true); } catch (SQLException e) { /* Ignorar */ }
+            }
         }
     }
 
@@ -365,7 +466,6 @@ public class NPedidos {
             pedido.setEstado(EstadoPedido.cancelado);
             if (pedido.modificar()) {
                 conn.commit();
-                conn.setAutoCommit(true);
                 return "Éxito: Pedido ID " + pedidoId + " cancelado. Insumos devueltos al almacén.";
             } else {
                 conn.rollback();
@@ -379,6 +479,10 @@ public class NPedidos {
                 try { conn.rollback(); } catch (SQLException rollbackEx) { /* Ignorar */ }
             }
             return "Error en BD al cancelar: " + e.getMessage();
+        } finally {
+            if (conn != null) {
+                try { conn.setAutoCommit(true); } catch (SQLException e) { /* Ignorar */ }
+            }
         }
     }
 
@@ -391,76 +495,71 @@ public class NPedidos {
         try {
             int cuotaId = Integer.parseInt(parametros.get(0).trim());
 
-            // Buscar cuota en la BD (como no hay obtenerPorId nativo en DCuotas, listamos y filtramos, o lo hacemos directo)
-            // Wait, does DCuotas have obtenerPorId? Let's check DCuotas.java. No, it doesn't have it, but we can write a SQL query directly or filter.
-            // Let's execute raw SQL to fetch, modify and save, which is much faster and cleaner!
-            String selectSql = "SELECT * FROM cuotas WHERE id = ?";
-            String updateSql = "UPDATE cuotas SET pagado = true, fecha_pago = CURRENT_DATE WHERE id = ?";
+            // Obtener monto de la cuota, estado de pago e información del cliente mediante un JOIN
+            String sqlInfo = "SELECT c.monto_cuota, c.pagado, u.nombre, u.apellido, u.telefono, u.email " +
+                             "FROM cuotas c " +
+                             "JOIN pagos p ON c.pago_id = p.id " +
+                             "JOIN pedidos ped ON p.pedido_id = ped.id " +
+                             "JOIN usuarios u ON ped.usuario_id = u.id " +
+                             "WHERE c.id = ?";
 
-            try (Connection conn = Conexion.getConexion()) {
-                int pagoId = -1;
-                boolean yaPagada = false;
-                try (PreparedStatement ps = conn.prepareStatement(selectSql)) {
-                    ps.setInt(1, cuotaId);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) {
-                            pagoId = rs.getInt("pago_id");
-                            yaPagada = rs.getBoolean("pagado");
-                        } else {
-                            return "Error: No existe la cuota con ID " + cuotaId;
-                        }
+            double montoCuota = 0.0;
+            boolean yaPagada = false;
+            String clienteNombre = "";
+            String clienteTelefono = "";
+            String clienteEmail = "";
+
+            try (Connection conn = Conexion.getConexion();
+                 PreparedStatement ps = conn.prepareStatement(sqlInfo)) {
+                ps.setInt(1, cuotaId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        montoCuota = rs.getDouble("monto_cuota");
+                        yaPagada = rs.getBoolean("pagado");
+                        clienteNombre = rs.getString("nombre") + " " + rs.getString("apellido");
+                        clienteTelefono = rs.getString("telefono");
+                        clienteEmail = rs.getString("email");
+                    } else {
+                        return "Error: No existe la cuota con ID " + cuotaId;
                     }
                 }
-
-                if (yaPagada) {
-                    return "Advertencia: La cuota ID " + cuotaId + " ya se encuentra pagada.";
-                }
-
-                // Pagar cuota
-                try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
-                    ps.setInt(1, cuotaId);
-                    if (ps.executeUpdate() == 0) {
-                        return "Error: No se pudo procesar el pago de la cuota.";
-                    }
-                }
-
-                // Verificar si todas las cuotas asociadas al pago_id se encuentran pagadas
-                String checkAllSql = "SELECT COUNT(*) FROM cuotas WHERE pago_id = ? AND pagado = false";
-                int pendientes = 0;
-                try (PreparedStatement ps = conn.prepareStatement(checkAllSql)) {
-                    ps.setInt(1, pagoId);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) {
-                            pendientes = rs.getInt(1);
-                        }
-                    }
-                }
-
-                if (pendientes == 0) {
-                    // Obtener el pedido_id asociado al pago_id
-                    String getPedSql = "SELECT pedido_id FROM pagos WHERE id = ?";
-                    int pedidoId = -1;
-                    try (PreparedStatement ps = conn.prepareStatement(getPedSql)) {
-                        ps.setInt(1, pagoId);
-                        try (ResultSet rs = ps.executeQuery()) {
-                            if (rs.next()) {
-                                pedidoId = rs.getInt(1);
-                            }
-                        }
-                    }
-
-                    if (pedidoId != -1) {
-                        // Cambiar estado del pedido a 'pagado'
-                        DPedidos ped = DPedidos.obtenerPorId(pedidoId);
-                        if (ped != null) {
-                            ped.setEstado(EstadoPedido.pagado);
-                            ped.modificar();
-                        }
-                    }
-                }
-
-                return "Éxito: Cuota ID " + cuotaId + " pagada correctamente." + (pendientes == 0 ? " ¡El pedido ha sido cancelado en su totalidad (estado PAGADO)!" : "");
             }
+
+            if (yaPagada) {
+                return "Advertencia: La cuota ID " + cuotaId + " ya se encuentra pagada.";
+            }
+
+            // Generar código QR para la cuota a través de PagoFacil
+            String companyTxId = "CUO-" + cuotaId;
+            String desc = "Pago de Cuota ID " + cuotaId;
+            String qrBase64 = PagoFacilService.generarQR(
+                clienteNombre,
+                clienteTelefono,
+                clienteEmail,
+                companyTxId,
+                montoCuota,
+                desc
+            );
+
+            if (qrBase64 == null) {
+                return "Error: No se pudo generar el código QR para el pago de la cuota. Intente de nuevo.";
+            }
+
+            // Registrar transacción en archivo JSON
+            PagoFacilService.registrarTransaccion(companyTxId, clienteEmail, montoCuota, "cuotas");
+
+            // Retornar mensaje con la imagen del QR incrustada en HTML
+            StringBuilder sb = new StringBuilder();
+            sb.append("Solicitud de pago para la Cuota ID ").append(cuotaId).append(" procesada correctamente.<br><br>");
+            sb.append("<div style=\"text-align: center; margin: 15px 0;\">");
+            sb.append("<strong style=\"color: #047857; font-size: 15px;\">ESCANEA EL SIGUIENTE QR PARA PAGAR TU CUOTA:</strong><br><br>");
+            sb.append("<img src=\"data:image/png;base64,").append(qrBase64).append("\" style=\"max-width: 250px; border: 4px solid #047857; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);\"><br><br>");
+            sb.append("<span style=\"font-weight: bold; font-size: 16px; color: #047857;\">Monto a Pagar: ").append(montoCuota).append(" Bs.</span><br>");
+            sb.append("<span style=\"color: #6b7280; font-size: 12px;\">Transacción ID: ").append(companyTxId).append("</span>");
+            sb.append("</div>");
+
+            return sb.toString();
+
         } catch (NumberFormatException e) {
             return "Error: El ID de la cuota debe ser entero.";
         } catch (SQLException e) {
@@ -550,6 +649,90 @@ public class NPedidos {
 
         } catch (SQLException e) {
             return "Error al verificar cuotas vencidas: " + e.getMessage();
+        }
+    }
+
+    public static boolean confirmarPagoPedido(int pedidoId) {
+        try {
+            DPedidos pedido = DPedidos.obtenerPorId(pedidoId);
+            if (pedido != null) {
+                pedido.setEstado(EstadoPedido.pagado);
+                return pedido.modificar();
+            }
+        } catch (SQLException e) {
+            System.err.println("[NPedidos] Error al confirmar pago de pedido: " + e.getMessage());
+        }
+        return false;
+    }
+
+    public static String confirmarPagoCuota(int cuotaId) {
+        String selectSql = "SELECT * FROM cuotas WHERE id = ?";
+        String updateSql = "UPDATE cuotas SET pagado = true, fecha_pago = CURRENT_DATE WHERE id = ?";
+        try (Connection conn = Conexion.getConexion()) {
+            int pagoId = -1;
+            boolean yaPagada = false;
+            try (PreparedStatement ps = conn.prepareStatement(selectSql)) {
+                ps.setInt(1, cuotaId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        pagoId = rs.getInt("pago_id");
+                        yaPagada = rs.getBoolean("pagado");
+                    } else {
+                        return "Error: No existe la cuota con ID " + cuotaId;
+                    }
+                }
+            }
+
+            if (yaPagada) {
+                return "Advertencia: La cuota ID " + cuotaId + " ya se encuentra pagada.";
+            }
+
+            // Pagar cuota
+            try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                ps.setInt(1, cuotaId);
+                if (ps.executeUpdate() == 0) {
+                    return "Error: No se pudo procesar el pago de la cuota.";
+                }
+            }
+
+            // Verificar si todas las cuotas asociadas al pago_id se encuentran pagadas
+            String checkAllSql = "SELECT COUNT(*) FROM cuotas WHERE pago_id = ? AND pagado = false";
+            int pendientes = 0;
+            try (PreparedStatement ps = conn.prepareStatement(checkAllSql)) {
+                ps.setInt(1, pagoId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        pendientes = rs.getInt(1);
+                    }
+                }
+            }
+
+            if (pendientes == 0) {
+                // Obtener el pedido_id asociado al pago_id
+                String getPedSql = "SELECT pedido_id FROM pagos WHERE id = ?";
+                int pedidoId = -1;
+                try (PreparedStatement ps = conn.prepareStatement(getPedSql)) {
+                    ps.setInt(1, pagoId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            pedidoId = rs.getInt(1);
+                        }
+                    }
+                }
+
+                if (pedidoId != -1) {
+                    // Cambiar estado del pedido a 'pagado'
+                    DPedidos ped = DPedidos.obtenerPorId(pedidoId);
+                    if (ped != null) {
+                        ped.setEstado(EstadoPedido.pagado);
+                        ped.modificar();
+                    }
+                }
+            }
+
+            return "Éxito: Cuota ID " + cuotaId + " pagada correctamente." + (pendientes == 0 ? " ¡El pedido ha sido liquidado en su totalidad (estado PAGADO)!" : "");
+        } catch (SQLException e) {
+            return "Error en BD: " + e.getMessage();
         }
     }
 }
