@@ -332,9 +332,40 @@ public class HiloVerificacionCorreo extends Thread {
                         int cuotaId = Integer.parseInt(txId.substring(4));
                         String resultMsg = CapaNegocio.NPedidos.confirmarPagoCuota(cuotaId);
                         
-                        if (resultMsg.toLowerCase().contains("\u00e9xito") || resultMsg.toLowerCase().contains("exito") || resultMsg.toLowerCase().contains("advertencia")) {
-                            String htmlContent = buildHtmlCuotaConfirmada(cuotaId, monto, txId, resultMsg);
-                            enviarRespuestaSMTP(email, "CONFIRMACION DE PAGO CUOTA #" + cuotaId, htmlContent);
+                        if (resultMsg.toLowerCase().contains("\u00e9xito") || resultMsg.toLowerCase().contains("exito")) {
+                            int pagoId = -1;
+                            int pedidoId = -1;
+                            try (java.sql.Connection conn = CapaDatos.Conexion.getConexion()) {
+                                String sqlCuota = "SELECT pago_id FROM cuotas WHERE id = ?";
+                                try (java.sql.PreparedStatement ps = conn.prepareStatement(sqlCuota)) {
+                                    ps.setInt(1, cuotaId);
+                                    try (java.sql.ResultSet rs = ps.executeQuery()) {
+                                        if (rs.next()) {
+                                            pagoId = rs.getInt("pago_id");
+                                        }
+                                    }
+                                }
+                                if (pagoId != -1) {
+                                    String sqlPago = "SELECT pedido_id FROM pagos WHERE id = ?";
+                                    try (java.sql.PreparedStatement ps = conn.prepareStatement(sqlPago)) {
+                                        ps.setInt(1, pagoId);
+                                        try (java.sql.ResultSet rs = ps.executeQuery()) {
+                                            if (rs.next()) {
+                                                pedidoId = rs.getInt("pedido_id");
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            boolean liquidado = resultMsg.toLowerCase().contains("liquidado");
+                            if (liquidado) {
+                                String htmlContent = buildHtmlPedidoLiquidado(cuotaId, pedidoId, pagoId, monto, txId, resultMsg);
+                                enviarRespuestaSMTP(email, "¡Pedido #" + pedidoId + " TOTALMENTE PAGADO! 🎉", htmlContent);
+                            } else {
+                                String htmlContent = buildHtmlCuotaConfirmada(cuotaId, pedidoId, pagoId, monto, txId, resultMsg);
+                                enviarRespuestaSMTP(email, "CONFIRMACION DE PAGO CUOTA #" + cuotaId + " (Pedido #" + pedidoId + ")", htmlContent);
+                            }
                         } else {
                             System.err.println("[MailThread] Error al confirmar cuota " + cuotaId + " en BD: " + resultMsg);
                         }
@@ -553,33 +584,18 @@ public class HiloVerificacionCorreo extends Thread {
         return sb.toString();
     }
 
-    private String buildHtmlCuotaConfirmada(int cuotaId, double monto, String txId, String resultMsg) {
-        int pagoId = -1;
-        int pedidoId = -1;
+    private String buildHtmlCuotaConfirmada(int cuotaId, int pedidoId, int pagoId, double monto, String txId, String resultMsg) {
         double totalPedido = 0.0;
         int numeroCuota = 0;
         int totalCuotas = 0;
         try (java.sql.Connection conn = CapaDatos.Conexion.getConexion()) {
-            String sqlCuota = "SELECT pago_id, numero_cuota, (SELECT COUNT(*) FROM cuotas WHERE pago_id = c.pago_id) as total_cuotas FROM cuotas c WHERE id = ?";
+            String sqlCuota = "SELECT numero_cuota, (SELECT COUNT(*) FROM cuotas WHERE pago_id = c.pago_id) as total_cuotas FROM cuotas c WHERE id = ?";
             try (java.sql.PreparedStatement ps = conn.prepareStatement(sqlCuota)) {
                 ps.setInt(1, cuotaId);
                 try (java.sql.ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        pagoId = rs.getInt("pago_id");
                         numeroCuota = rs.getInt("numero_cuota");
                         totalCuotas = rs.getInt("total_cuotas");
-                    }
-                }
-            }
-
-            if (pagoId != -1) {
-                String sqlPago = "SELECT pedido_id FROM pagos WHERE id = ?";
-                try (java.sql.PreparedStatement ps = conn.prepareStatement(sqlPago)) {
-                    ps.setInt(1, pagoId);
-                    try (java.sql.ResultSet rs = ps.executeQuery()) {
-                        if (rs.next()) {
-                            pedidoId = rs.getInt("pedido_id");
-                        }
                     }
                 }
             }
@@ -621,7 +637,7 @@ public class HiloVerificacionCorreo extends Thread {
         sb.append("<div class=\"container\">");
         sb.append("  <div class=\"header\">");
         sb.append("    <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuzú Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">");
-        sb.append("    <h1>🎉 PAGO DE CUOTA CONFIRMADO 🎉</h1>");
+        sb.append("    <h1>🎉 CONFIRMACIÓN DE PAGO DE CUOTA 🎉</h1>");
         sb.append("  </div>");
         sb.append("  <div class=\"content\">");
         sb.append("    <div class=\"card\">");
@@ -629,11 +645,7 @@ public class HiloVerificacionCorreo extends Thread {
         sb.append("      <h2 style=\"margin: 0; color: #166534; font-size: 18px;\">¡Cuota Pagada con Éxito!</h2>");
         sb.append("      <p style=\"color: #15803d; font-size: 13px; margin: 5px 0 15px 0;\">Hemos procesado tu pago de la Cuota Nro. ").append(numeroCuota).append(" de ").append(totalCuotas).append(" por:</p>");
         sb.append("      <div class=\"amount\">").append(monto).append(" Bs.</div>");
-        if (resultMsg.contains("liquidado")) {
-            sb.append("      <span style=\"background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; padding: 6px 16px; border-radius: 30px; font-size: 12px; font-weight: 700; display: inline-block;\">PEDIDO TOTALMENTE LIQUIDADO (PAGADO)</span>");
-        } else {
-            sb.append("      <span style=\"background-color: #fef3c7; color: #d97706; border: 1px solid #fde68a; padding: 6px 16px; border-radius: 30px; font-size: 12px; font-weight: 700; display: inline-block;\">CUOTA ").append(numeroCuota).append(" DE ").append(totalCuotas).append(" PAGADA</span>");
-        }
+        sb.append("      <span style=\"background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; padding: 6px 16px; border-radius: 30px; font-size: 12px; font-weight: 700; display: inline-block;\">CUOTA ").append(numeroCuota).append(" DE ").append(totalCuotas).append(" PAGADA</span>");
         sb.append("      <p style=\"font-size: 13px; font-weight: bold; color: #166534; margin: 10px 0 0 0;\">").append(resultMsg).append("</p>");
         sb.append("    </div>");
         
@@ -641,7 +653,7 @@ public class HiloVerificacionCorreo extends Thread {
         sb.append("    <table class=\"details-table\">");
         sb.append("      <tr><td class=\"label\">Cuota ID:</td><td class=\"value\">#").append(cuotaId).append("</td></tr>");
         sb.append("      <tr><td class=\"label\">Pedido ID:</td><td class=\"value\">#").append(pedidoId).append("</td></tr>");
-        sb.append("      <tr><td class=\"label\">Tipo de Pago:</td><td class=\"value\"><span style=\"color: #d97706; font-weight: bold;\">CRÉDITO (EN CUOTAS)</span></td></tr>");
+        sb.append("      <tr><td class=\"label\">Tipo de Pago:</td><td class=\"value\"><span style=\"color: #047857; font-weight: bold;\">CRÉDITO (EN CUOTAS)</span></td></tr>");
         sb.append("      <tr><td class=\"label\">Cuota Pagada:</td><td class=\"value\">Cuota Nro. ").append(numeroCuota).append(" de ").append(totalCuotas).append("</td></tr>");
         sb.append("      <tr><td class=\"label\">Monto del Pedido:</td><td class=\"value\">").append(totalPedido).append(" Bs.</td></tr>");
         sb.append("      <tr><td class=\"label\">Referencia PagoFacil:</td><td class=\"value\">").append(txId).append("</td></tr>");
@@ -686,7 +698,131 @@ public class HiloVerificacionCorreo extends Thread {
             }
             sb.append("      </tbody>");
             sb.append("    </table>");
-            sb.append("    <br><p style=\"font-size: 13px; color: #6b7280; text-align: center;\">Recuerda que para pagar tus siguientes cuotas pendientes debes usar el comando <strong>PAGAR_CUOTA[\"CuotaID\"]</strong>.</p>");
+        }
+
+        sb.append("  </div>");
+        sb.append("  <div class=\"footer\">");
+        sb.append("    <strong>Grupo 16 - Tecnología Web (UAGRM)</strong><br>");
+        sb.append("    Este es un correo de notificación automática de pagos.");
+        sb.append("  </div>");
+        sb.append("</div></body></html>");
+        return sb.toString();
+    }
+
+    private String buildHtmlPedidoLiquidado(int cuotaId, int pedidoId, int pagoId, double monto, String txId, String resultMsg) {
+        double totalPedido = 0.0;
+        int numeroCuota = 0;
+        int totalCuotas = 0;
+        try (java.sql.Connection conn = CapaDatos.Conexion.getConexion()) {
+            String sqlCuota = "SELECT numero_cuota, (SELECT COUNT(*) FROM cuotas WHERE pago_id = c.pago_id) as total_cuotas FROM cuotas c WHERE id = ?";
+            try (java.sql.PreparedStatement ps = conn.prepareStatement(sqlCuota)) {
+                ps.setInt(1, cuotaId);
+                try (java.sql.ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        numeroCuota = rs.getInt("numero_cuota");
+                        totalCuotas = rs.getInt("total_cuotas");
+                    }
+                }
+            }
+
+            if (pedidoId != -1) {
+                CapaDatos.DPedidos ped = CapaDatos.DPedidos.obtenerPorId(pedidoId);
+                if (ped != null) {
+                    totalPedido = ped.getTotal();
+                }
+            }
+        } catch (java.sql.SQLException e) {
+            System.err.println("[MailThread] Error al consultar plan de cuotas para liquidar: " + e.getMessage());
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("<!DOCTYPE html><html><head><meta charset=\"utf-8\">");
+        sb.append("<style>");
+        sb.append("  body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: #fdfaf7; color: #4a3e3d; margin: 0; padding: 0; }");
+        sb.append("  .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(97, 56, 28, 0.08); border: 1px solid #f0e6df; }");
+        sb.append("  .header { background: linear-gradient(135deg, #10b981, #047857); padding: 35px 20px; text-align: center; color: #ffffff; }");
+        sb.append("  .header h1 { margin: 0; font-size: 24px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.15); }");
+        sb.append("  .content { padding: 35px 30px; }");
+        sb.append("  .card { background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 25px; }");
+        sb.append("  .success-icon { font-size: 48px; color: #10b981; margin-bottom: 15px; }");
+        sb.append("  .amount { font-size: 28px; font-weight: 800; color: #047857; margin: 10px 0; }");
+        sb.append("  .details-table, .cuotas-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 15px; border-radius: 12px; overflow: hidden; border: 1px solid #eedfd4; }");
+        sb.append("  .details-table td { padding: 12px 16px; border-bottom: 1px solid #f7efe9; font-size: 14px; }");
+        sb.append("  .details-table td.label { font-weight: 600; color: #6b7280; width: 40%; }");
+        sb.append("  .details-table td.value { font-weight: 700; color: #4a3e3d; text-align: right; }");
+        sb.append("  .cuotas-table th { background-color: #047857; color: #ffffff; padding: 12px 14px; font-size: 13px; font-weight: 600; text-align: left; }");
+        sb.append("  .cuotas-table td { padding: 12px 14px; border-bottom: 1px solid #f7efe9; font-size: 13px; color: #4a3e3d; }");
+        sb.append("  .cuotas-table tr:last-child td { border-bottom: none; }");
+        sb.append("  .cuotas-table tr:nth-child(even) { background-color: #fdfbf9; }");
+        sb.append("  .badge { display: inline-block; padding: 4px 10px; border-radius: 30px; font-size: 11px; font-weight: 600; text-align: center; }");
+        sb.append("  .badge-si { background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }");
+        sb.append("  .footer { background-color: #fcf8f5; padding: 20px; text-align: center; font-size: 12px; color: #8c7b70; border-top: 1px solid #f0e6df; }");
+        sb.append("</style></head><body>");
+        sb.append("<div class=\"container\">");
+        sb.append("  <div class=\"header\">");
+        sb.append("    <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuzú Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">");
+        sb.append("    <h1>🎉 ¡PEDIDO LIQUIDADO CON ÉXITO! 🎉</h1>");
+        sb.append("  </div>");
+        sb.append("  <div class=\"content\">");
+        sb.append("    <div class=\"card\">");
+        sb.append("      <div class=\"success-icon\">✓</div>");
+        sb.append("      <h2 style=\"margin: 0; color: #166534; font-size: 18px;\">¡Pedido Totalmente Pagado!</h2>");
+        sb.append("      <p style=\"color: #15803d; font-size: 13px; margin: 5px 0 15px 0;\">Hemos recibido el pago de la última Cuota Nro. ").append(numeroCuota).append(" de ").append(totalCuotas).append(" por ").append(monto).append(" Bs. con el que se liquida tu pedido:</p>");
+        sb.append("      <div class=\"amount\">").append(totalPedido).append(" Bs.</div>");
+        sb.append("      <span style=\"background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; padding: 6px 16px; border-radius: 30px; font-size: 12px; font-weight: 700; display: inline-block;\">PEDIDO 100% LIQUIDADO (PAGADO)</span>");
+        sb.append("      <p style=\"font-size: 13px; font-weight: bold; color: #166534; margin: 10px 0 0 0;\">").append(resultMsg).append("</p>");
+        sb.append("    </div>");
+        
+        sb.append("    <h3 style=\"margin-top: 25px; border-bottom: 2px solid #f7efe9; padding-bottom: 8px; color: #047857;\">Detalle de Transacción</h3>");
+        sb.append("    <table class=\"details-table\">");
+        sb.append("      <tr><td class=\"label\">Pedido ID:</td><td class=\"value\">#").append(pedidoId).append("</td></tr>");
+        sb.append("      <tr><td class=\"label\">Tipo de Pago:</td><td class=\"value\"><span style=\"color: #10b981; font-weight: bold;\">CRÉDITO (PAGO COMPLETO)</span></td></tr>");
+        sb.append("      <tr><td class=\"label\">Monto del Pedido:</td><td class=\"value\">").append(totalPedido).append(" Bs.</td></tr>");
+        sb.append("      <tr><td class=\"label\">Referencia de Último Pago:</td><td class=\"value\">").append(txId).append("</td></tr>");
+        sb.append("      <tr><td class=\"label\">Fecha de Liquidación:</td><td class=\"value\">").append(new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new java.util.Date())).append("</td></tr>");
+        sb.append("    </table>");
+
+        if (pagoId != -1) {
+            sb.append("    <h3 style=\"margin-top: 30px; border-bottom: 2px solid #f7efe9; padding-bottom: 8px; color: #047857;\">Plan de Cuotas Histórico</h3>");
+            sb.append("    <table class=\"cuotas-table\">");
+            sb.append("      <thead><tr><th>Cuota ID</th><th>Nro.</th><th>Monto</th><th>Vencimiento</th><th>Estado</th></tr></thead>");
+            sb.append("      <tbody>");
+            try (java.sql.Connection conn = CapaDatos.Conexion.getConexion()) {
+                String sqlList = "SELECT id, numero_cuota, monto_cuota, fecha_vencimiento, pagado FROM cuotas WHERE pago_id = ? ORDER BY numero_cuota ASC";
+                try (java.sql.PreparedStatement ps = conn.prepareStatement(sqlList)) {
+                    ps.setInt(1, pagoId);
+                    try (java.sql.ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            int cid = rs.getInt("id");
+                            int num = rs.getInt("numero_cuota");
+                            double val = rs.getDouble("monto_cuota");
+                            java.sql.Date venc = rs.getDate("fecha_vencimiento");
+                            boolean pag = rs.getBoolean("pagado");
+                            
+                            sb.append("      <tr>");
+                            sb.append("        <td>#").append(cid).append("</td>");
+                            sb.append("        <td>").append(num).append("</td>");
+                            sb.append("        <td>").append(val).append(" Bs.</td>");
+                            sb.append("        <td>").append(venc.toString()).append("</td>");
+                            sb.append("        <td>");
+                            if (pag) {
+                                sb.append("          <span class=\"badge badge-si\">PAGADO</span>");
+                            } else {
+                                sb.append("          <span class=\"badge badge-si\">PAGADO</span>");
+                            }
+                            sb.append("        </td>");
+                            sb.append("      </tr>");
+                        }
+                    }
+                }
+            } catch (java.sql.SQLException e) {
+                System.err.println("[MailThread] Error al listar cuotas: " + e.getMessage());
+            }
+            sb.append("      </tbody>");
+            sb.append("    </table>");
+            sb.append("    <br><div style=\"text-align: center; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 15px; margin-top: 10px;\">");
+            sb.append("      <p style=\"font-size: 14px; font-weight: bold; color: #15803d; margin: 0;\">🎉 ¡Tu pedido ha sido liquidado en su totalidad y ya está en preparación! ¡Muchas gracias por tu compra!</p>");
+            sb.append("    </div>");
         }
 
         sb.append("  </div>");

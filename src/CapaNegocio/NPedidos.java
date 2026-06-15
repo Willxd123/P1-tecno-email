@@ -46,6 +46,26 @@ public class NPedidos {
             String tipoPagoStr = parametros.get(3).trim().toLowerCase();
             int cantCuotas = Integer.parseInt(parametros.get(4).trim());
 
+            // Evitar duplicación por lecturas concurrentes de POP3
+            try (Connection checkConn = Conexion.getConexion()) {
+                String sqlDup = "SELECT p.id FROM pedidos p JOIN detalle_pedido dp ON p.id = dp.pedido_id " +
+                                "WHERE p.usuario_id = ? AND dp.producto_id = ? AND dp.cantidad = ? " +
+                                "AND p.fecha >= NOW() - INTERVAL '30 seconds' LIMIT 1";
+                try (PreparedStatement ps = checkConn.prepareStatement(sqlDup)) {
+                    ps.setInt(1, clienteId);
+                    ps.setInt(2, productoId);
+                    ps.setInt(3, cantidad);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            int existingId = rs.getInt("id");
+                            return "Error: Ya existe un pedido idéntico procesado recientemente (Pedido ID: " + existingId + "). Evitando duplicados.";
+                        }
+                    }
+                }
+            } catch (SQLException e) {
+                System.err.println("[NPedidos] Error en check de duplicados: " + e.getMessage());
+            }
+
             // 1. Validaciones básicas
             DUsuarios cliente = DUsuarios.obtenerPorId(clienteId);
             if (cliente == null) {
@@ -676,6 +696,10 @@ public class NPedidos {
         try {
             DPedidos pedido = DPedidos.obtenerPorId(pedidoId);
             if (pedido != null) {
+                if (pedido.getEstado() == EstadoPedido.pagado || pedido.getEstado() == EstadoPedido.entregado) {
+                    System.out.println("[NPedidos] El pedido ID " + pedidoId + " ya se encuentra pagado o entregado.");
+                    return false;
+                }
                 pedido.setEstado(EstadoPedido.pagado);
                 if (pedido.modificar()) {
                     actualizarProgresoCartilla(pedido.getUsuario_id(), pedido.getCartilla_id());
