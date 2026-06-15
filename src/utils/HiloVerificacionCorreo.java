@@ -56,7 +56,8 @@ public class HiloVerificacionCorreo extends Thread {
             }
         }
         System.out.println("[MailThread] Hilo de procesamiento de correos detenido.");
-    }     /**
+    }
+     /**
      * Se conecta por POP3, descarga los correos, los procesa y los responde.
      */
     private void procesarCorreos() {
@@ -275,6 +276,86 @@ public class HiloVerificacionCorreo extends Thread {
     }
 
     /**
+     * Reconcilia las transacciones QR pendientes registradas en qr_transactions.json
+     */
+    private void reconciliarPagosQR() {
+        java.util.Map<String, String> transacciones = PagoFacilService.cargarTransacciones();
+        if (transacciones.isEmpty()) {
+            return;
+        }
+
+        System.out.println("[MailThread] Reconciliando " + transacciones.size() + " transacci\u00f3n(es) pendiente(s) de QR...");
+
+        // Lista de transacciones a remover del archivo JSON tras confirmar el pago
+        java.util.List<String> transaccionesCompletadas = new java.util.ArrayList<>();
+
+        for (java.util.Map.Entry<String, String> entry : transacciones.entrySet()) {
+            String txId = entry.getKey();
+            String info = entry.getValue();
+            String[] parts = info.split(";");
+            if (parts.length < 4) {
+                continue;
+            }
+            String email = parts[0];
+            double monto = Double.parseDouble(parts[1]);
+            String tipo = parts[2];
+            long pfTxId = 0;
+            try {
+                pfTxId = Long.parseLong(parts[3]);
+            } catch (NumberFormatException e) {
+                System.err.println("[MailThread] Error al parsear pfTxId para " + txId + ": " + parts[3]);
+                continue;
+            }
+
+            System.out.println("[MailThread] Consultando estado de " + txId + " (PagoFacil ID: " + pfTxId + ") en PagoFacil...");
+            boolean pagado = PagoFacilService.consultarEstado(pfTxId);
+
+            if (pagado) {
+                System.out.println("[MailThread] \u00a1Transacci\u00f3n " + txId + " PAGADA confirmada!");
+
+                if (txId.startsWith("PED-")) {
+                    try {
+                        int pedidoId = Integer.parseInt(txId.substring(4));
+                        boolean dbOk = CapaNegocio.NPedidos.confirmarPagoPedido(pedidoId);
+                        
+                        if (dbOk) {
+                            String htmlContent = buildHtmlPedidoConfirmado(pedidoId, monto, txId);
+                            enviarRespuestaSMTP(email, "CONFIRMACION DE PAGO PEDIDO #" + pedidoId, htmlContent);
+                        } else {
+                            System.err.println("[MailThread] Error al actualizar pedido " + pedidoId + " en la base de datos.");
+                        }
+                    } catch (Exception e) {
+                        System.err.println("[MailThread] Error al procesar pago de pedido " + txId + ": " + e.getMessage());
+                    }
+                } else if (txId.startsWith("CUO-")) {
+                    try {
+                        int cuotaId = Integer.parseInt(txId.substring(4));
+                        String resultMsg = CapaNegocio.NPedidos.confirmarPagoCuota(cuotaId);
+                        
+                        if (resultMsg.toLowerCase().contains("\u00e9xito") || resultMsg.toLowerCase().contains("exito") || resultMsg.toLowerCase().contains("advertencia")) {
+                            String htmlContent = buildHtmlCuotaConfirmada(cuotaId, monto, txId, resultMsg);
+                            enviarRespuestaSMTP(email, "CONFIRMACION DE PAGO CUOTA #" + cuotaId, htmlContent);
+                        } else {
+                            System.err.println("[MailThread] Error al confirmar cuota " + cuotaId + " en BD: " + resultMsg);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("[MailThread] Error al procesar pago de cuota " + txId + ": " + e.getMessage());
+                    }
+                }
+
+                transaccionesCompletadas.add(txId);
+            } else {
+                System.out.println("[MailThread] Transacci\u00f3n " + txId + " sigue pendiente.");
+            }
+        }
+
+        // Remover las que ya fueron pagadas
+        for (String txId : transaccionesCompletadas) {
+            PagoFacilService.removerTransaccion(txId);
+        }
+    }
+
+    /**
      * EnvÃ­a un correo electrÃ³nico utilizando sockets TCP puros en el puerto 25.
      */
     private boolean enviarRespuestaSMTP(String destinatario, String subjectOriginal, String contenido) {
@@ -331,25 +412,75 @@ public class HiloVerificacionCorreo extends Thread {
             writer.writeBytes("Subject: Re: " + subjectOriginal + END);
             writer.writeBytes("MIME-Version: 1.0" + END);
             
-            // Cuerpo (DetecciÃ³n dinÃ¡mica HTML vs Texto Plano)
+            // Cuerpo (Detección dinámica HTML vs Texto Plano)
             if (contenido.trim().startsWith("<!DOCTYPE html>") || contenido.trim().startsWith("<html>")) {
-                writer.writeBytes("Content-Type: text/html; charset=UTF-8" + END);
-                writer.writeBytes(END); // Separador cabecera-cuerpo
-                
-                // CRITICAL: Write raw UTF-8 bytes to socket to prevent char/emoji corruption
-                byte[] htmlBytes = contenido.replace("\r\n", "\n").replace("\n", "\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
-                writer.write(htmlBytes);
+                if (contenido.contains("src=\"data:image/png;base64,")) {
+                    int startIdx = contenido.indexOf("src=\"data:image/png;base64,");
+                    int startBase64 = startIdx + "src=\"data:image/png;base64,".length();
+                    int endBase64 = contenido.indexOf("\"", startBase64);
+                    
+                    if (endBase64 != -1) {
+                        String rawBase64 = contenido.substring(startBase64, endBase64);
+                        String cleanBase64 = rawBase64.replace("\r", "").replace("\n", "").trim();
+                        
+                        String htmlBody = contenido.substring(0, startIdx) + "src=\"cid:qrcode\"" + contenido.substring(endBase64 + 1);
+                        String boundary = "----=_Part_0_ZUZU_" + System.currentTimeMillis();
+                        
+                        writer.writeBytes("Content-Type: multipart/related; boundary=\"" + boundary + "\"\r\n");
+                        writer.writeBytes(END); // Separador cabecera-cuerpo
+                        
+                        // 1. Cuerpo HTML
+                        writer.writeBytes("--" + boundary + END);
+                        writer.writeBytes("Content-Type: text/html; charset=UTF-8" + END);
+                        writer.writeBytes("Content-Transfer-Encoding: 8bit" + END);
+                        writer.writeBytes(END);
+                        
+                        byte[] htmlBytes = htmlBody.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                        writer.write(htmlBytes);
+                        writer.writeBytes(END);
+                        
+                        // 2. Adjunto de Imagen inline
+                        writer.writeBytes("--" + boundary + END);
+                        writer.writeBytes("Content-Type: image/png; name=\"qrcode.png\"" + END);
+                        writer.writeBytes("Content-Transfer-Encoding: base64" + END);
+                        writer.writeBytes("Content-ID: <qrcode>" + END);
+                        writer.writeBytes("Content-Disposition: inline; filename=\"qrcode.png\"" + END);
+                        writer.writeBytes(END);
+                        
+                        // Escribir base64 formateada
+                        StringBuilder wrappedBase64 = new StringBuilder();
+                        int len = cleanBase64.length();
+                        for (int idx_b = 0; idx_b < len; idx_b += 76) {
+                            int endIdx = Math.min(idx_b + 76, len);
+                            wrappedBase64.append(cleanBase64, idx_b, endIdx).append("\r\n");
+                        }
+                        writer.writeBytes(wrappedBase64.toString());
+                        writer.writeBytes(END);
+                        
+                        // 3. Cerrar
+                        writer.writeBytes("--" + boundary + "--" + END);
+                    } else {
+                        writer.writeBytes("Content-Type: text/html; charset=UTF-8" + END);
+                        writer.writeBytes(END);
+                        byte[] htmlBytes = contenido.replace("\r\n", "\n").replace("\n", "\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                        writer.write(htmlBytes);
+                    }
+                } else {
+                    writer.writeBytes("Content-Type: text/html; charset=UTF-8" + END);
+                    writer.writeBytes(END); // Separador cabecera-cuerpo
+                    byte[] htmlBytes = contenido.replace("\r\n", "\n").replace("\n", "\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                    writer.write(htmlBytes);
+                }
             } else {
                 writer.writeBytes("Content-Type: text/plain; charset=UTF-8" + END);
                 writer.writeBytes(END); // Separador cabecera-cuerpo
-                writer.writeBytes("--- RESPUESTA AUTOMÃ TICA DEL SISTEMA (GRUPO 16) ---" + END + END);
+                writer.writeBytes("--- RESPUESTA AUTOMÁTICA DEL SISTEMA (GRUPO 16) ---" + END + END);
                 
-                // CRITICAL: Write raw UTF-8 bytes to socket
                 byte[] textBytes = contenido.replace("\r\n", "\n").replace("\n", "\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
                 writer.write(textBytes);
                 
                 writer.writeBytes(END + END + "-------------------------------------------------" + END);
-                writer.writeBytes("TecnoCorreoZUZU v1.0 - ReposterÃ­a Automatizada" + END);
+                writer.writeBytes("TecnoCorreoZUZU v1.0 - Repostería Automatizada" + END);
             }
             
             // Fin de DATA
@@ -370,79 +501,6 @@ public class HiloVerificacionCorreo extends Thread {
         } catch (Exception e) {
             System.out.println("    [SMTP] ERROR al enviar correo: " + e.getMessage());
             return false;
-        }
-    }
-
-    /**
-     * Reconcilia las transacciones QR pendientes registradas en qr_transactions.json
-     */
-    private void reconciliarPagosQR() {
-        java.util.Map<String, String> transacciones = PagoFacilService.cargarTransacciones();
-        if (transacciones.isEmpty()) {
-            return;
-        }
-
-        System.out.println("[MailThread] Reconciliando " + transacciones.size() + " transacción(es) pendiente(s) de QR...");
-
-        // Lista de transacciones a remover del archivo JSON tras confirmar el pago
-        java.util.List<String> transaccionesCompletadas = new java.util.ArrayList<>();
-
-        for (java.util.Map.Entry<String, String> entry : transacciones.entrySet()) {
-            String txId = entry.getKey();
-            String info = entry.getValue();
-            String[] parts = info.split(";");
-            if (parts.length < 3) {
-                continue;
-            }
-            String email = parts[0];
-            double monto = Double.parseDouble(parts[1]);
-            String tipo = parts[2];
-
-            System.out.println("[MailThread] Consultando estado de " + txId + " en PagoFacil...");
-            boolean pagado = PagoFacilService.consultarEstado(txId);
-
-            if (pagado) {
-                System.out.println("[MailThread] ¡Transacción " + txId + " PAGADA confirmada!");
-
-                if (txId.startsWith("PED-")) {
-                    try {
-                        int pedidoId = Integer.parseInt(txId.substring(4));
-                        boolean dbOk = CapaNegocio.NPedidos.confirmarPagoPedido(pedidoId);
-                        
-                        if (dbOk) {
-                            String htmlContent = buildHtmlPedidoConfirmado(pedidoId, monto, txId);
-                            enviarRespuestaSMTP(email, "CONFIRMACION DE PAGO PEDIDO #" + pedidoId, htmlContent);
-                        } else {
-                            System.err.println("[MailThread] Error al actualizar pedido " + pedidoId + " en la base de datos.");
-                        }
-                    } catch (Exception e) {
-                        System.err.println("[MailThread] Error al procesar pago de pedido " + txId + ": " + e.getMessage());
-                    }
-                } else if (txId.startsWith("CUO-")) {
-                    try {
-                        int cuotaId = Integer.parseInt(txId.substring(4));
-                        String resultMsg = CapaNegocio.NPedidos.confirmarPagoCuota(cuotaId);
-                        
-                        if (resultMsg.startsWith("Éxito") || resultMsg.startsWith("Advertencia")) {
-                            String htmlContent = buildHtmlCuotaConfirmada(cuotaId, monto, txId, resultMsg);
-                            enviarRespuestaSMTP(email, "CONFIRMACION DE PAGO CUOTA #" + cuotaId, htmlContent);
-                        } else {
-                            System.err.println("[MailThread] Error al confirmar cuota " + cuotaId + " en BD: " + resultMsg);
-                        }
-                    } catch (Exception e) {
-                        System.err.println("[MailThread] Error al procesar pago de cuota " + txId + ": " + e.getMessage());
-                    }
-                }
-
-                transaccionesCompletadas.add(txId);
-            } else {
-                System.out.println("[MailThread] Transacción " + txId + " sigue pendiente.");
-            }
-        }
-
-        // Remover las que ya fueron pagadas
-        for (String txId : transaccionesCompletadas) {
-            PagoFacilService.removerTransaccion(txId);
         }
     }
 
@@ -475,11 +533,12 @@ public class HiloVerificacionCorreo extends Thread {
         sb.append("      <h2 style=\"margin: 0; color: #166534; font-size: 20px;\">¡Pago Exitoso Recibido!</h2>");
         sb.append("      <p style=\"color: #15803d; font-size: 14px; margin: 5px 0 15px 0;\">Hemos recibido correctamente tu pago de:</p>");
         sb.append("      <div class=\"amount\">").append(monto).append(" Bs.</div>");
-        sb.append("      <span style=\"background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; padding: 6px 16px; border-radius: 30px; font-size: 12px; font-weight: 700; display: inline-block;\">PEDIDO TOTAL PAGADO</span>");
+        sb.append("      <span style=\"background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; padding: 6px 16px; border-radius: 30px; font-size: 12px; font-weight: 700; display: inline-block;\">PAGO AL CONTADO CONFIRMADO</span>");
         sb.append("    </div>");
         sb.append("    <h3 style=\"margin-top: 0; border-bottom: 2px solid #f7efe9; padding-bottom: 8px; color: #047857;\">Detalle de Transacción</h3>");
         sb.append("    <table class=\"details-table\">");
         sb.append("      <tr><td class=\"label\">Pedido ID:</td><td class=\"value\">#").append(pedidoId).append("</td></tr>");
+        sb.append("      <tr><td class=\"label\">Tipo de Pago:</td><td class=\"value\"><span style=\"color: #10b981; font-weight: bold;\">AL CONTADO</span></td></tr>");
         sb.append("      <tr><td class=\"label\">PagoFacil Ref:</td><td class=\"value\">").append(txId).append("</td></tr>");
         sb.append("      <tr><td class=\"label\">Fecha de Pago:</td><td class=\"value\">").append(new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new java.util.Date())).append("</td></tr>");
         sb.append("      <tr><td class=\"label\">Estado Pedido:</td><td class=\"value\"><span style=\"color: #10b981; font-weight: bold;\">PAGADO</span></td></tr>");
@@ -498,13 +557,17 @@ public class HiloVerificacionCorreo extends Thread {
         int pagoId = -1;
         int pedidoId = -1;
         double totalPedido = 0.0;
+        int numeroCuota = 0;
+        int totalCuotas = 0;
         try (java.sql.Connection conn = CapaDatos.Conexion.getConexion()) {
-            String sqlCuota = "SELECT pago_id FROM cuotas WHERE id = ?";
+            String sqlCuota = "SELECT pago_id, numero_cuota, (SELECT COUNT(*) FROM cuotas WHERE pago_id = c.pago_id) as total_cuotas FROM cuotas c WHERE id = ?";
             try (java.sql.PreparedStatement ps = conn.prepareStatement(sqlCuota)) {
                 ps.setInt(1, cuotaId);
                 try (java.sql.ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         pagoId = rs.getInt("pago_id");
+                        numeroCuota = rs.getInt("numero_cuota");
+                        totalCuotas = rs.getInt("total_cuotas");
                     }
                 }
             }
@@ -564,8 +627,13 @@ public class HiloVerificacionCorreo extends Thread {
         sb.append("    <div class=\"card\">");
         sb.append("      <div class=\"success-icon\">✓</div>");
         sb.append("      <h2 style=\"margin: 0; color: #166534; font-size: 18px;\">¡Cuota Pagada con Éxito!</h2>");
-        sb.append("      <p style=\"color: #15803d; font-size: 13px; margin: 5px 0 15px 0;\">Hemos procesado tu pago de la Cuota #").append(cuotaId).append(" por:</p>");
+        sb.append("      <p style=\"color: #15803d; font-size: 13px; margin: 5px 0 15px 0;\">Hemos procesado tu pago de la Cuota Nro. ").append(numeroCuota).append(" de ").append(totalCuotas).append(" por:</p>");
         sb.append("      <div class=\"amount\">").append(monto).append(" Bs.</div>");
+        if (resultMsg.contains("liquidado")) {
+            sb.append("      <span style=\"background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; padding: 6px 16px; border-radius: 30px; font-size: 12px; font-weight: 700; display: inline-block;\">PEDIDO TOTALMENTE LIQUIDADO (PAGADO)</span>");
+        } else {
+            sb.append("      <span style=\"background-color: #fef3c7; color: #d97706; border: 1px solid #fde68a; padding: 6px 16px; border-radius: 30px; font-size: 12px; font-weight: 700; display: inline-block;\">CUOTA ").append(numeroCuota).append(" DE ").append(totalCuotas).append(" PAGADA</span>");
+        }
         sb.append("      <p style=\"font-size: 13px; font-weight: bold; color: #166534; margin: 10px 0 0 0;\">").append(resultMsg).append("</p>");
         sb.append("    </div>");
         
@@ -573,6 +641,8 @@ public class HiloVerificacionCorreo extends Thread {
         sb.append("    <table class=\"details-table\">");
         sb.append("      <tr><td class=\"label\">Cuota ID:</td><td class=\"value\">#").append(cuotaId).append("</td></tr>");
         sb.append("      <tr><td class=\"label\">Pedido ID:</td><td class=\"value\">#").append(pedidoId).append("</td></tr>");
+        sb.append("      <tr><td class=\"label\">Tipo de Pago:</td><td class=\"value\"><span style=\"color: #d97706; font-weight: bold;\">CRÉDITO (EN CUOTAS)</span></td></tr>");
+        sb.append("      <tr><td class=\"label\">Cuota Pagada:</td><td class=\"value\">Cuota Nro. ").append(numeroCuota).append(" de ").append(totalCuotas).append("</td></tr>");
         sb.append("      <tr><td class=\"label\">Monto del Pedido:</td><td class=\"value\">").append(totalPedido).append(" Bs.</td></tr>");
         sb.append("      <tr><td class=\"label\">Referencia PagoFacil:</td><td class=\"value\">").append(txId).append("</td></tr>");
         sb.append("      <tr><td class=\"label\">Fecha de Pago:</td><td class=\"value\">").append(new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new java.util.Date())).append("</td></tr>");

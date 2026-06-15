@@ -16,9 +16,14 @@ public class PPedidos {
             String alertClass = esError ? "alert-error" : "alert-success";
             String alertTitle = esError ? "⚠️ ADVERTENCIA / ERROR" : "🎉 OPERACIÓN EXITOSA";
             
+            String formattedResult = resultado;
+            if (!resultado.contains("<img") && !resultado.contains("<div")) {
+                formattedResult = resultado.replace("\n", "<br>");
+            }
+            
             bodyHtml.append("<div class=\"alert ").append(alertClass).append("\">")
                     .append("<strong>").append(alertTitle).append("</strong><br>")
-                    .append(resultado.replace("\n", "<br>"))
+                    .append(formattedResult)
                     .append("</div>");
         }
 

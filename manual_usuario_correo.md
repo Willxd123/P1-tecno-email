@@ -108,42 +108,42 @@ Muestra el detalle detallado de un perfil.
 
 ---
 
-## 3. Comandos para Gestión de Roles (Caso de Uso 9 / CRUD Auxiliar)
+## 3. Comandos para Gestión de Roles (Caso de Uso 1 / CRUD Auxiliar)
 
-### A) Registrar Rol (`CU9-01`, `REGROL` o `REGISTRAR_ROL`)
+### A) Registrar Rol (`CU1-08`, `REGROL` o `REGISTRAR_ROL`)
 * **Parámetros:** `["NombreRol"]`
 * **Ejemplo de Entrada (Asunto):**
-  `CU9-01["Repostero"]` o `REGROL["Repostero"]`
+  `CU1-08["Repostero"]` o `REGROL["Repostero"]`
 * **Ejemplo de Respuesta Visual (HTML):**
   > **🎉 OPERACIÓN EXITOSA**
   > Éxito: Rol 'Repostero' registrado con ID: 4.
 
 ---
 
-### B) Editar Rol (`CU9-02`, `EDTROL` o `EDITAR_ROL`)
+### B) Editar Rol (`CU1-09`, `EDTROL` o `EDITAR_ROL`)
 * **Parámetros:** `["ID", "NuevoNombre"]`
 * **Ejemplo de Entrada (Asunto):**
-  `CU9-02["4","Repostero Fino"]` o `EDTROL["4","Repostero Fino"]`
+  `CU1-09["4","Repostero Fino"]` o `EDTROL["4","Repostero Fino"]`
 * **Ejemplo de Respuesta Visual (HTML):**
   > **🎉 OPERACIÓN EXITOSA**
   > Éxito: Rol modificado correctamente. ID: 4 | Nuevo Nombre: Repostero Fino.
 
 ---
 
-### C) Eliminar Rol (`CU9-03`, `DELROL` o `ELIMINAR_ROL`)
+### C) Eliminar Rol (`CU1-10`, `DELROL` o `ELIMINAR_ROL`)
 * **Parámetros:** `["ID"]`
 * **Ejemplo de Entrada (Asunto):**
-  `CU9-03["4"]` o `DELROL["4"]`
+  `CU1-10["4"]` o `DELROL["4"]`
 * **Ejemplo de Respuesta Visual (HTML):**
   > **🎉 OPERACIÓN EXITOSA**
   > Éxito: Rol con ID 4 (Repostero Fino) eliminado correctamente.
 
 ---
 
-### D) Listar Roles (`CU9-04`, `LISROL` o `LISTAR_ROLES`)
+### D) Listar Roles (`CU1-11`, `LISROL` o `LISTAR_ROLES`)
 * **Parámetros:** Ninguno.
 * **Ejemplo de Entrada (Asunto):**
-  `CU9-04` o `LISROL`
+  `CU1-11` o `LISROL`
 * **Ejemplo de Respuesta Visual (HTML):**
   Retorna una tabla visual con el siguiente formato:
 
@@ -155,10 +155,10 @@ Muestra el detalle detallado de un perfil.
 
 ---
 
-### E) Ver Rol (`CU9-05`, `VERROL` o `VER_ROL`)
+### E) Ver Rol (`CU1-12`, `VERROL` o `VER_ROL`)
 * **Parámetros:** `["ID"]`
 * **Ejemplo de Entrada (Asunto):**
-  `CU9-05["2"]` o `VERROL["2"]`
+  `CU1-12["2"]` o `VERROL["2"]`
 * **Ejemplo de Respuesta Visual (HTML):**
   > **=== DETALLE DEL ROL ===**  
   > ID: 2  
@@ -171,4 +171,4 @@ Muestra el detalle detallado de un perfil.
 Si tienes dudas sobre la sintaxis o los comandos admitidos, puedes enviar un correo con el Asunto:
 `HELP` o `AYUDA`
 
-El sistema te responderá inmediatamente con un correo en texto plano que contiene la guía de uso de comandos de forma interactiva y detallada.
+El sistema te responderá inmediatamente con un correo en formato HTML que contiene la guía de uso de comandos de forma interactiva y detallada.

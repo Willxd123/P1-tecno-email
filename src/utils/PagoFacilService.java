@@ -67,7 +67,7 @@ public class PagoFacilService {
      * @param itemDescription Descripción corta de los productos
      * @return El string Base64 del código QR, o null si falla.
      */
-    public static String generarQR(String clientName, String clientPhone, String clientEmail, String companyTxId, double amount, String itemDescription) {
+    public static String[] generarQR(String clientName, String clientPhone, String clientEmail, String companyTxId, double amount, String itemDescription) {
         String token = login();
         if (token == null) {
             return null;
@@ -83,7 +83,13 @@ public class PagoFacilService {
         clientName = escapeJson(clientName);
         itemDescription = escapeJson(itemDescription);
 
-        // Construir JSON body - Hardcodeamos 0.1 para pruebas reales de bajo costo
+        // Habilitar monto de pruebas (0.1 Bs) si está activo en la configuración
+        double amountToSend = amount;
+        if (Configuracion.getPagoFacilTestMode()) {
+            amountToSend = 0.1;
+        }
+
+        // Construir JSON body
         String jsonBody = "{\n" +
                 "    \"paymentMethod\": 34,\n" +
                 "    \"clientName\": \"" + clientName + "\",\n" +
@@ -92,7 +98,7 @@ public class PagoFacilService {
                 "    \"phoneNumber\": \"" + clientPhone + "\",\n" +
                 "    \"email\": \"" + clientEmail + "\",\n" +
                 "    \"paymentNumber\": \"" + companyTxId + "\",\n" +
-                "    \"amount\": 0.1,\n" +
+                "    \"amount\": " + amountToSend + ",\n" +
                 "    \"currency\": 2,\n" + // 2: BOB (Bolivianos)
                 "    \"clientCode\": \"" + companyTxId + "\",\n" +
                 "    \"callbackUrl\": \"https://masterqr.pagofacil.com.bo/api/services/v2/callback-dummy\",\n" +
@@ -101,9 +107,9 @@ public class PagoFacilService {
                 "            \"serial\": 1,\n" +
                 "            \"product\": \"" + itemDescription + "\",\n" +
                 "            \"quantity\": 1,\n" +
-                "            \"price\": 0.1,\n" +
+                "            \"price\": " + amountToSend + ",\n" +
                 "            \"discount\": 0,\n" +
-                "            \"total\": 0.1\n" +
+                "            \"total\": " + amountToSend + "\n" +
                 "        }\n" +
                 "    ]\n" +
                 "}";
@@ -119,10 +125,12 @@ public class PagoFacilService {
 
             HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
             if (response.statusCode() == 200) {
-                String rawQr = parseJsonField(response.body(), "qrBase64");
-                if (rawQr != null) {
+                String rawBody = response.body();
+                String transactionId = parseJsonField(rawBody, "transactionId");
+                String rawQr = parseJsonField(rawBody, "qrBase64");
+                if (transactionId != null && rawQr != null) {
                     String cleanQr = rawQr.replace("\\/", "/");
-                    return formatBase64(cleanQr);
+                    return new String[]{ transactionId, formatBase64(cleanQr) };
                 }
             } else {
                 System.err.println("[PagoFacil] Error al generar QR. Status: " + response.statusCode() + " | Body: " + response.body());
@@ -134,19 +142,19 @@ public class PagoFacilService {
     }
 
     /**
-     * Consulta el estado de pago de una transacción en PagoFacil por su ID de empresa.
+     * Consulta el estado de pago de una transacción en PagoFacil por su ID de transacción interno.
      * 
-     * @param companyTxId ID de transacción de nuestra empresa (ej: PED-1008 o CUO-3005)
+     * @param pfTxId ID de transacción de PagoFacil (pagofacilTransactionId)
      * @return true si la transacción ya está pagada en PagoFacil, false en caso contrario.
      */
-    public static boolean consultarEstado(String companyTxId) {
+    public static boolean consultarEstado(long pfTxId) {
         String token = login();
         if (token == null) {
             return false;
         }
 
         String jsonBody = "{\n" +
-                "    \"companyTransactionId\": \"" + companyTxId + "\"\n" +
+                "    \"pagofacilTransactionId\": " + pfTxId + "\n" +
                 "}";
 
         try {
@@ -162,13 +170,21 @@ public class PagoFacilService {
             if (response.statusCode() == 200) {
                 String body = response.body();
                 String paymentStatus = parseJsonField(body, "paymentStatus");
+                String paymentStatusDesc = parseJsonField(body, "paymentStatusDescription");
                 
-                // Retorna true si el estado es "Pagado" o similar
-                return "Pagado".equalsIgnoreCase(paymentStatus) 
-                    || "Paid".equalsIgnoreCase(paymentStatus) 
-                    || "1".equals(paymentStatus)
+                // Retorna true si el estado es "2", "5" (Revisión en el sandbox) o si la descripción indica éxito
+                return "2".equals(paymentStatus) 
+                    || "5".equals(paymentStatus)
+                    || "Pagado".equalsIgnoreCase(paymentStatus)
+                    || "Paid".equalsIgnoreCase(paymentStatus)
                     || "Success".equalsIgnoreCase(paymentStatus)
-                    || "Completed".equalsIgnoreCase(paymentStatus);
+                    || "Completed".equalsIgnoreCase(paymentStatus)
+                    || "Pagado".equalsIgnoreCase(paymentStatusDesc)
+                    || "Paid".equalsIgnoreCase(paymentStatusDesc)
+                    || "Success".equalsIgnoreCase(paymentStatusDesc)
+                    || "Completed".equalsIgnoreCase(paymentStatusDesc)
+                    || "Revisión".equalsIgnoreCase(paymentStatusDesc)
+                    || "Revision".equalsIgnoreCase(paymentStatusDesc);
             } else {
                 System.err.println("[PagoFacil] Error al consultar estado. Status: " + response.statusCode() + " | Body: " + response.body());
             }
@@ -179,12 +195,19 @@ public class PagoFacilService {
     }
 
     /**
-     * Utilidad simple para parsear un campo String de un JSON plano usando Expresiones Regulares.
+     * Utilidad para parsear un campo String o numérico de un JSON plano usando Expresiones Regulares.
      */
     private static String parseJsonField(String json, String field) {
         if (json == null) return null;
-        Pattern pattern = Pattern.compile("\"" + field + "\"[\\s:]*\"([^\"]+)\"");
-        Matcher matcher = pattern.matcher(json);
+        // 1. Intentar buscar campo con comillas (String)
+        Pattern stringPattern = Pattern.compile("\"" + field + "\"[\\s:]*\"([^\"]+)\"");
+        Matcher matcher = stringPattern.matcher(json);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        // 2. Intentar buscar campo numérico o booleano (sin comillas)
+        Pattern numberPattern = Pattern.compile("\"" + field + "\"[\\s:]*([\\d\\.]+)");
+        matcher = numberPattern.matcher(json);
         if (matcher.find()) {
             return matcher.group(1);
         }

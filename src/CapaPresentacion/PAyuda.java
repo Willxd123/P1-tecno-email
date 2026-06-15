@@ -194,6 +194,45 @@ public class PAyuda {
                "            <span class=\"code-example\">VER_PERFIL[\"1\"]</span>\n" +
                "          </td>\n" +
                "        </tr>\n" +
+               "        <tr>\n" +
+               "          <td><strong>CU1-08</strong> o <strong>REGISTRAR_ROL</strong></td>\n" +
+               "          <td>Registrar Rol (Auxiliar)</td>\n" +
+               "          <td>\n" +
+               "            <span class=\"code-pattern\">REGISTRAR_ROL[\"NombreRol\"]</span><br>\n" +
+               "            <span class=\"code-example\">REGISTRAR_ROL[\"secretario\"]</span>\n" +
+               "          </td>\n" +
+               "        </tr>\n" +
+               "        <tr>\n" +
+               "          <td><strong>CU1-09</strong> o <strong>EDITAR_ROL</strong></td>\n" +
+               "          <td>Editar Rol (Auxiliar)</td>\n" +
+               "          <td>\n" +
+               "            <span class=\"code-pattern\">EDITAR_ROL[\"ID\",\"NuevoNombre\"]</span><br>\n" +
+               "            <span class=\"code-example\">EDITAR_ROL[\"3\",\"secretario_premium\"]</span>\n" +
+               "          </td>\n" +
+               "        </tr>\n" +
+               "        <tr>\n" +
+               "          <td><strong>CU1-10</strong> o <strong>ELIMINAR_ROL</strong></td>\n" +
+               "          <td>Eliminar Rol (Auxiliar)</td>\n" +
+               "          <td>\n" +
+               "            <span class=\"code-pattern\">ELIMINAR_ROL[\"ID\"]</span><br>\n" +
+               "            <span class=\"code-example\">ELIMINAR_ROL[\"3\"]</span>\n" +
+               "          </td>\n" +
+               "        </tr>\n" +
+               "        <tr>\n" +
+               "          <td><strong>CU1-11</strong> o <strong>LISTAR_ROLES</strong></td>\n" +
+               "          <td>Listar Roles (Auxiliar)</td>\n" +
+               "          <td>\n" +
+               "            <span class=\"code-pattern\">LISTAR_ROLES</span> o <span class=\"code-pattern\">LISROL</span>\n" +
+               "          </td>\n" +
+               "        </tr>\n" +
+               "        <tr>\n" +
+               "          <td><strong>CU1-12</strong> o <strong>VER_ROL</strong></td>\n" +
+               "          <td>Ver Detalles de Rol (Auxiliar)</td>\n" +
+               "          <td>\n" +
+               "            <span class=\"code-pattern\">VER_ROL[\"ID\"]</span><br>\n" +
+               "            <span class=\"code-example\">VER_ROL[\"1\"]</span>\n" +
+               "          </td>\n" +
+               "        </tr>\n" +
                "      </table>\n" +
                "\n" +
                "      <!-- MÓDULO 2: INSUMOS -->\n" +
@@ -372,6 +411,14 @@ public class PAyuda {
                "            <span class=\"code-example\">VER_CARTILLA[\"1\"]</span>\n" +
                "          </td>\n" +
                "        </tr>\n" +
+               "        <tr>\n" +
+               "          <td><strong>CU4-02</strong> o <strong>CANJEAR_PREMIO</strong></td>\n" +
+               "          <td>Canjear Chifón de Regalo (Premio)</td>\n" +
+               "          <td>\n" +
+               "            <span class=\"code-pattern\">CANJEAR_PREMIO[\"ClienteID\", \"ProductoID\"]</span><br>\n" +
+               "            <span class=\"code-example\">CANJEAR_PREMIO[\"1\", \"11\"]</span>\n" +
+               "          </td>\n" +
+               "        </tr>\n" +
                "      </table>\n" +
                "\n" +
                "      <!-- MÓDULO 5: VENTAS / PRODUCTOS -->\n" +
@@ -423,8 +470,8 @@ public class PAyuda {
                "        </tr>\n" +
                "      </table>\n" +
                "\n" +
-               "      <!-- MÓDULO 6 & 7: PEDIDOS Y PAGOS -->\n" +
-               "      <div class=\"module-title\">Módulos 6 & 7: Pedidos y Pagos (CU6 / CU7 - CRUD & Crédito)</div>\n" +
+               "      <!-- MÓDULO 6: PEDIDOS -->\n" +
+               "      <div class=\"module-title\">Módulo 6: Gestión de Pedidos (CU6 - Operaciones & Estados)</div>\n" +
                "      <table>\n" +
                "        <tr>\n" +
                "          <th style=\"width: 25%\">Comando / Caso de Uso</th>\n" +
@@ -470,8 +517,18 @@ public class PAyuda {
                "            <span class=\"code-example\">CANCELAR_PEDIDO[\"1\"]</span>\n" +
                "          </td>\n" +
                "        </tr>\n" +
+               "      </table>\n" +
+               "\n" +
+               "      <!-- MÓDULO 7: PAGOS -->\n" +
+               "      <div class=\"module-title\">Módulo 7: Gestión de Pagos (CU7 - Contado & Crédito)</div>\n" +
+               "      <table>\n" +
                "        <tr>\n" +
-               "          <td><strong>CU7-03</strong> o <strong>PAGAR_CUOTA</strong></td>\n" +
+               "          <th style=\"width: 25%\">Comando / Caso de Uso</th>\n" +
+               "          <th style=\"width: 25%\">Operación / Acción</th>\n" +
+               "          <th style=\"width: 50%\">Formato & Ejemplo de Asunto</th>\n" +
+               "        </tr>\n" +
+               "        <tr>\n" +
+               "          <td><strong>CU7-01</strong> o <strong>PAGAR_CUOTA</strong></td>\n" +
                "          <td>Registrar Pago de Cuota</td>\n" +
                "          <td>\n" +
                "            <span class=\"code-pattern\">PAGAR_CUOTA[\"CuotaID\"]</span><br>\n" +
@@ -479,7 +536,7 @@ public class PAyuda {
                "          </td>\n" +
                "        </tr>\n" +
                "        <tr>\n" +
-               "          <td><strong>CU7-04</strong> o <strong>ESTADO_CUOTAS</strong></td>\n" +
+               "          <td><strong>CU7-02</strong> o <strong>ESTADO_CUOTAS</strong></td>\n" +
                "          <td>Ver Estado de Cuotas</td>\n" +
                "          <td>\n" +
                "            <span class=\"code-pattern\">ESTADO_CUOTAS[\"PedidoID\"]</span><br>\n" +
@@ -487,7 +544,7 @@ public class PAyuda {
                "          </td>\n" +
                "        </tr>\n" +
                "        <tr>\n" +
-               "          <td><strong>CU7-05</strong> o <strong>CUOTAS_VENCIDAS</strong></td>\n" +
+               "          <td><strong>CU7-03</strong> o <strong>CUOTAS_VENCIDAS</strong></td>\n" +
                "          <td>Ver Cuotas Vencidas</td>\n" +
                "          <td>\n" +
                "            <span class=\"code-pattern\">CUOTAS_VENCIDAS</span>\n" +
@@ -546,55 +603,6 @@ public class PAyuda {
                "          <td>Reporte de Envases Prestados</td>\n" +
                "          <td>\n" +
                "            <span class=\"code-pattern\">REPORTE_ENVASES_PRESTADOS</span>\n" +
-               "          </td>\n" +
-               "        </tr>\n" +
-               "      </table>\n" +
-               "\n" +
-               "      <!-- MÓDULO 9: ROLES -->\n" +
-               "      <div class=\"module-title\">Módulo 9: Gestión de Roles (CU9 - CRUD Completo)</div>\n" +
-               "      <table>\n" +
-               "        <tr>\n" +
-               "          <th style=\"width: 25%\">Comando / Caso de Uso</th>\n" +
-               "          <th style=\"width: 25%\">Operación / Acción</th>\n" +
-               "          <th style=\"width: 50%\">Formato & Ejemplo de Asunto</th>\n" +
-               "        </tr>\n" +
-               "        <tr>\n" +
-               "          <td><strong>CU9-01</strong> o <strong>REGISTRAR_ROL</strong></td>\n" +
-               "          <td>Registrar Rol (Create)</td>\n" +
-               "          <td>\n" +
-               "            <span class=\"code-pattern\">REGISTRAR_ROL[\"NombreRol\"]</span><br>\n" +
-               "            <span class=\"code-example\">REGISTRAR_ROL[\"secretario\"]</span>\n" +
-               "          </td>\n" +
-               "        </tr>\n" +
-               "        <tr>\n" +
-               "          <td><strong>CU9-02</strong> o <strong>EDITAR_ROL</strong></td>\n" +
-               "          <td>Editar Rol (Update)</td>\n" +
-               "          <td>\n" +
-               "            <span class=\"code-pattern\">EDITAR_ROL[\"ID\",\"NuevoNombre\"]</span><br>\n" +
-               "            <span class=\"code-example\">EDITAR_ROL[\"3\",\"secretario_premium\"]</span>\n" +
-               "          </td>\n" +
-               "        </tr>\n" +
-               "        <tr>\n" +
-               "          <td><strong>CU9-03</strong> o <strong>ELIMINAR_ROL</strong></td>\n" +
-               "          <td>Eliminar Rol (Delete)</td>\n" +
-               "          <td>\n" +
-               "            <span class=\"code-pattern\">ELIMINAR_ROL[\"ID\"]</span><br>\n" +
-               "            <span class=\"code-example\">ELIMINAR_ROL[\"3\"]</span>\n" +
-               "          </td>\n" +
-               "        </tr>\n" +
-               "        <tr>\n" +
-               "          <td><strong>CU9-04</strong> o <strong>LISTAR_ROLES</strong></td>\n" +
-               "          <td>Listar Roles (Read)</td>\n" +
-               "          <td>\n" +
-               "            <span class=\"code-pattern\">LISTAR_ROLES</span> o <span class=\"code-pattern\">LISROL</span>\n" +
-               "          </td>\n" +
-               "        </tr>\n" +
-               "        <tr>\n" +
-               "          <td><strong>CU9-05</strong> o <strong>VER_ROL</strong></td>\n" +
-               "          <td>Ver Detalles de Rol (Read Detail)</td>\n" +
-               "          <td>\n" +
-               "            <span class=\"code-pattern\">VER_ROL[\"ID\"]</span><br>\n" +
-               "            <span class=\"code-example\">VER_ROL[\"1\"]</span>\n" +
                "          </td>\n" +
                "        </tr>\n" +
                "      </table>\n" +

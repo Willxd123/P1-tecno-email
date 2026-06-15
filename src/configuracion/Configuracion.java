@@ -207,4 +207,8 @@ public class Configuracion {
     public static String getPagoFacilTokenSecret() {
         return get("PAGOFACIL_TOKEN_SECRET");
     }
+
+    public static boolean getPagoFacilTestMode() {
+        return Boolean.parseBoolean(get("PAGOFACIL_TEST_MODE", "true"));
+    }
 }

@@ -13,6 +13,7 @@ import CapaDatos.DMovimientosInsumo;
 import CapaDatos.DUsuarios;
 import CapaDatos.DEnvases;
 import CapaDatos.DPedidoEnvase;
+import CapaDatos.DCartillas;
 import CapaDatos.enums.EstadoPedido;
 import CapaDatos.enums.TipoPago;
 import CapaDatos.enums.TipoMovimientoInsumo;
@@ -123,6 +124,19 @@ public class NPedidos {
             pedido.setUsuario_id(clienteId);
             pedido.setTotal(total);
             pedido.setEstado(EstadoPedido.pendiente); // Ambos inician como pendiente hasta que se pague
+
+            // Obtener o crear cartilla activa
+            DCartillas cart = DCartillas.obtenerActivaPorUsuario(clienteId);
+            if (cart == null) {
+                cart = new DCartillas();
+                cart.setUsuario_id(clienteId);
+                cart.setEstado("activa");
+                if (!cart.insertar()) {
+                    conn.rollback();
+                    return "Error: No se pudo iniciar una cartilla activa para el cliente.";
+                }
+            }
+            pedido.setCartilla_id(cart.getId());
 
             if (!pedido.insertar()) {
                 conn.rollback();
@@ -238,7 +252,7 @@ public class NPedidos {
             }
 
             String desc = "Pedido de " + cantidad + " " + producto.getNombre();
-            qrBase64 = PagoFacilService.generarQR(
+            String[] qrResult = PagoFacilService.generarQR(
                 cliente.getNombre() + " " + cliente.getApellido(),
                 cliente.getTelefono(),
                 cliente.getEmail(),
@@ -247,13 +261,16 @@ public class NPedidos {
                 desc
             );
 
-            if (qrBase64 == null) {
+            if (qrResult == null) {
                 conn.rollback();
                 return "Error: No se pudo generar el código QR de PagoFacil. Por favor, intente de nuevo.";
             }
 
-            // Registrar transacción en el archivo JSON
-            PagoFacilService.registrarTransaccion(companyTxId, cliente.getEmail(), amountToPay, txType);
+            String pfTxId = qrResult[0];
+            qrBase64 = qrResult[1];
+
+            // Registrar transacción en el archivo JSON (incluyendo el pfTxId de PagoFacil)
+            PagoFacilService.registrarTransaccion(companyTxId, cliente.getEmail(), amountToPay, txType + ";" + pfTxId);
 
             // Enlazar el pedido_id en los movimientos de insumos creados anteriormente
             String updateMovSql = "UPDATE movimientos_insumo SET pedido_id = ? WHERE pedido_id IS NULL AND tipo = 'consumo'";
@@ -273,7 +290,7 @@ public class NPedidos {
             } else {
                 sb.append("<strong style=\"color: #047857; font-size: 15px;\">ESCANEA EL SIGUIENTE QR PARA PAGAR LA CUOTA 1 (CONFIRMAR PEDIDO):</strong><br><br>");
             }
-            sb.append("<img src=\"data:image/png;base64,").append(qrBase64).append("\" style=\"max-width: 250px; border: 4px solid #047857; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);\"><br><br>");
+            sb.append("<img src=\"data:image/png;base64,").append(qrBase64.replace("\r", "").replace("\n", "").trim()).append("\" style=\"max-width: 250px; border: 4px solid #047857; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);\"><br><br>");
             sb.append("<span style=\"font-weight: bold; font-size: 16px; color: #047857;\">Monto a Pagar: ").append(amountToPay).append(" Bs.</span><br>");
             sb.append("<span style=\"color: #6b7280; font-size: 12px;\">Transacción ID: ").append(companyTxId).append("</span>");
             sb.append("</div>");
@@ -486,11 +503,11 @@ public class NPedidos {
         }
     }
 
-    // CU7-03: Registrar Pago de una Cuota
+    // CU7-01: Registrar Pago de una Cuota
     // Params: ["CuotaID"]
     public static String registrarPagoCuota(List<String> parametros) {
         if (parametros.isEmpty()) {
-            return "Error: Falta parámetro. Uso: CU7-03[\"CuotaID\"]";
+            return "Error: Falta parámetro. Uso: CU7-01[\"CuotaID\"]";
         }
         try {
             int cuotaId = Integer.parseInt(parametros.get(0).trim());
@@ -532,7 +549,7 @@ public class NPedidos {
             // Generar código QR para la cuota a través de PagoFacil
             String companyTxId = "CUO-" + cuotaId;
             String desc = "Pago de Cuota ID " + cuotaId;
-            String qrBase64 = PagoFacilService.generarQR(
+            String[] qrResult = PagoFacilService.generarQR(
                 clienteNombre,
                 clienteTelefono,
                 clienteEmail,
@@ -541,19 +558,22 @@ public class NPedidos {
                 desc
             );
 
-            if (qrBase64 == null) {
+            if (qrResult == null) {
                 return "Error: No se pudo generar el código QR para el pago de la cuota. Intente de nuevo.";
             }
 
-            // Registrar transacción en archivo JSON
-            PagoFacilService.registrarTransaccion(companyTxId, clienteEmail, montoCuota, "cuotas");
+            String pfTxId = qrResult[0];
+            String qrBase64 = qrResult[1];
+
+            // Registrar transacción en archivo JSON (incluyendo el pfTxId de PagoFacil)
+            PagoFacilService.registrarTransaccion(companyTxId, clienteEmail, montoCuota, "cuotas;" + pfTxId);
 
             // Retornar mensaje con la imagen del QR incrustada en HTML
             StringBuilder sb = new StringBuilder();
             sb.append("Solicitud de pago para la Cuota ID ").append(cuotaId).append(" procesada correctamente.<br><br>");
             sb.append("<div style=\"text-align: center; margin: 15px 0;\">");
             sb.append("<strong style=\"color: #047857; font-size: 15px;\">ESCANEA EL SIGUIENTE QR PARA PAGAR TU CUOTA:</strong><br><br>");
-            sb.append("<img src=\"data:image/png;base64,").append(qrBase64).append("\" style=\"max-width: 250px; border: 4px solid #047857; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);\"><br><br>");
+            sb.append("<img src=\"data:image/png;base64,").append(qrBase64.replace("\r", "").replace("\n", "").trim()).append("\" style=\"max-width: 250px; border: 4px solid #047857; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);\"><br><br>");
             sb.append("<span style=\"font-weight: bold; font-size: 16px; color: #047857;\">Monto a Pagar: ").append(montoCuota).append(" Bs.</span><br>");
             sb.append("<span style=\"color: #6b7280; font-size: 12px;\">Transacción ID: ").append(companyTxId).append("</span>");
             sb.append("</div>");
@@ -567,11 +587,11 @@ public class NPedidos {
         }
     }
 
-    // CU7-04: Ver Estado de Cuotas de un Pedido
+    // CU7-02: Ver Estado de Cuotas de un Pedido
     // Params: ["PedidoID"]
     public static String verEstadoCuotas(List<String> parametros) {
         if (parametros.isEmpty()) {
-            return "Error: Falta parámetro. Uso: CU7-04[\"PedidoID\"]";
+            return "Error: Falta parámetro. Uso: CU7-02[\"PedidoID\"]";
         }
         try {
             int pedidoId = Integer.parseInt(parametros.get(0).trim());
@@ -616,7 +636,7 @@ public class NPedidos {
         }
     }
 
-    // CU7-05: Ver Cuotas Vencidas
+    // CU7-03: Ver Cuotas Vencidas
     public static String verCuotasVencidas() {
         String sql = "SELECT c.id AS cuota_id, c.numero_cuota, c.monto_cuota, c.fecha_vencimiento, " +
                      "u.nombre || ' ' || u.apellido AS cliente, u.telefono, p.id AS pedido_id " +
@@ -657,7 +677,10 @@ public class NPedidos {
             DPedidos pedido = DPedidos.obtenerPorId(pedidoId);
             if (pedido != null) {
                 pedido.setEstado(EstadoPedido.pagado);
-                return pedido.modificar();
+                if (pedido.modificar()) {
+                    actualizarProgresoCartilla(pedido.getUsuario_id(), pedido.getCartilla_id());
+                    return true;
+                }
             }
         } catch (SQLException e) {
             System.err.println("[NPedidos] Error al confirmar pago de pedido: " + e.getMessage());
@@ -725,7 +748,9 @@ public class NPedidos {
                     DPedidos ped = DPedidos.obtenerPorId(pedidoId);
                     if (ped != null) {
                         ped.setEstado(EstadoPedido.pagado);
-                        ped.modificar();
+                        if (ped.modificar()) {
+                            actualizarProgresoCartilla(ped.getUsuario_id(), ped.getCartilla_id());
+                        }
                     }
                 }
             }
@@ -733,6 +758,251 @@ public class NPedidos {
             return "Éxito: Cuota ID " + cuotaId + " pagada correctamente." + (pendientes == 0 ? " ¡El pedido ha sido liquidado en su totalidad (estado PAGADO)!" : "");
         } catch (SQLException e) {
             return "Error en BD: " + e.getMessage();
+        }
+    }
+
+    public static void actualizarProgresoCartilla(int usuarioId, Integer cartillaId) {
+        if (cartillaId == null) return;
+        try {
+            DCartillas cartilla = DCartillas.obtenerPorId(cartillaId);
+            if (cartilla == null || !cartilla.getEstado().equals("activa")) {
+                return;
+            }
+
+            int chifonesComprados = 0;
+            int envasesDevueltos = 0;
+
+            String sqlChifones = "SELECT COALESCE(SUM(dp.cantidad), 0) " +
+                                 "FROM detalle_pedido dp " +
+                                 "JOIN pedidos p ON dp.pedido_id = p.id " +
+                                 "JOIN productos pr ON dp.producto_id = pr.id " +
+                                 "WHERE p.cartilla_id = ? " +
+                                 "  AND (p.estado = 'pagado' OR p.estado = 'entregado') " +
+                                 "  AND (pr.nombre ILIKE '%chifón%' OR pr.nombre ILIKE '%chifon%') " +
+                                 "  AND dp.precio_unitario > 0";
+
+            String sqlEnvases = "SELECT COALESCE(SUM(pe.cantidad_devuelta), 0) " +
+                                "FROM pedido_envase pe " +
+                                "JOIN pedidos p ON pe.pedido_origen_id = p.id " +
+                                "WHERE p.cartilla_id = ?";
+
+            try (Connection conn = Conexion.getConexion()) {
+                try (PreparedStatement ps = conn.prepareStatement(sqlChifones)) {
+                    ps.setInt(1, cartillaId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            chifonesComprados = rs.getInt(1);
+                        }
+                    }
+                }
+                try (PreparedStatement ps = conn.prepareStatement(sqlEnvases)) {
+                    ps.setInt(1, cartillaId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            envasesDevueltos = rs.getInt(1);
+                        }
+                    }
+                }
+            }
+
+            if (chifonesComprados >= 10 && envasesDevueltos >= 10) {
+                cartilla.setEstado("completada");
+                cartilla.setFecha_fin(new Timestamp(System.currentTimeMillis()));
+                cartilla.modificar();
+            }
+        } catch (SQLException e) {
+            System.err.println("[NPedidos] Error al actualizar progreso de cartilla: " + e.getMessage());
+        }
+    }
+
+    public static String canjearPremio(List<String> parametros) {
+        if (parametros.size() < 2) {
+            return "Error: Faltan parámetros. Uso: CANJEAR_PREMIO[\"ClienteID\",\"ProductoID\"] o CU4-02[\"ClienteID\",\"ProductoID\"]";
+        }
+        Connection conn = null;
+        try {
+            int clienteId = Integer.parseInt(parametros.get(0).trim());
+            int productoId = Integer.parseInt(parametros.get(1).trim());
+
+            DUsuarios cliente = DUsuarios.obtenerPorId(clienteId);
+            if (cliente == null) {
+                return "Error: El cliente con ID " + clienteId + " no está registrado.";
+            }
+
+            DProductos producto = DProductos.obtenerPorId(productoId);
+            if (producto == null) {
+                return "Error: El producto con ID " + productoId + " no existe.";
+            }
+            if (!producto.isDisponible()) {
+                return "Error: El producto '" + producto.getNombre() + "' no está disponible actualmente.";
+            }
+
+            String prodNombreLower = producto.getNombre().toLowerCase();
+            if (!prodNombreLower.contains("chifón") && !prodNombreLower.contains("chifon")) {
+                return "Error: El premio solo puede ser un chifón.";
+            }
+            if (!prodNombreLower.contains("clásico") && !prodNombreLower.contains("clasico") && !prodNombreLower.contains("tradicional") && productoId != 11) {
+                return "Error: El premio solo puede ser de la categoría Tradicional (como el Chifón de Naranja Clásico).";
+            }
+
+            DCartillas cartillaCompletada = null;
+            String sqlFindCompleted = "SELECT * FROM cartillas WHERE usuario_id = ? AND estado = 'completada' ORDER BY fecha_fin ASC LIMIT 1";
+            try (Connection checkConn = Conexion.getConexion();
+                 PreparedStatement ps = checkConn.prepareStatement(sqlFindCompleted)) {
+                ps.setInt(1, clienteId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        Integer chifonId = rs.getInt("chifon_regalo_id");
+                        if (rs.wasNull()) chifonId = null;
+                        cartillaCompletada = new DCartillas(
+                            rs.getInt("id"),
+                            rs.getInt("usuario_id"),
+                            rs.getString("estado"),
+                            rs.getTimestamp("fecha_inicio"),
+                            rs.getTimestamp("fecha_fin"),
+                            chifonId,
+                            rs.getTimestamp("fecha_canje"),
+                            rs.getBoolean("envase_regalo_devuelto")
+                        );
+                    }
+                }
+            }
+
+            if (cartillaCompletada == null) {
+                return "Error: El cliente no tiene ninguna cartilla en estado COMPLETADA. Necesita acumular 10 compras y 10 devoluciones de envases primero.";
+            }
+
+            DRecetas receta = DRecetas.obtenerPorProducto(productoId);
+            if (receta == null) {
+                return "Error: El producto '" + producto.getNombre() + "' no tiene una receta registrada.";
+            }
+
+            List<DRecetaDetalle> ingredientes = DRecetaDetalle.listarPorReceta(receta.getId());
+            if (ingredientes.isEmpty()) {
+                return "Error: La receta del producto está vacía.";
+            }
+
+            for (DRecetaDetalle ing : ingredientes) {
+                DInsumos ins = DInsumos.obtenerPorId(ing.getInsumo_id());
+                if (ins == null) {
+                    return "Error: El insumo con ID " + ing.getInsumo_id() + " requerido no existe.";
+                }
+                double requerido = ing.getCantidad() * 1;
+                if (ins.getStock_actual() < requerido) {
+                    return "Error: Stock insuficiente de '" + ins.getNombre() + "'. Requerido: " + requerido + ", Disponible: " + ins.getStock_actual();
+                }
+            }
+
+            conn = Conexion.getConexion();
+            conn.setAutoCommit(false);
+
+            for (DRecetaDetalle ing : ingredientes) {
+                DInsumos ins = DInsumos.obtenerPorId(ing.getInsumo_id());
+                double requerido = ing.getCantidad() * 1;
+                ins.setStock_actual(ins.getStock_actual() - requerido);
+                ins.modificar();
+
+                DMovimientosInsumo mov = new DMovimientosInsumo();
+                mov.setInsumo_id(ins.getId());
+                mov.setTipo(TipoMovimientoInsumo.consumo);
+                mov.setCantidad(-requerido);
+                mov.setDescripcion("Consumo fabricación chifón de regalo (Premio) de " + producto.getNombre());
+                mov.insertar();
+            }
+
+            DPedidos pedido = new DPedidos();
+            pedido.setUsuario_id(clienteId);
+            pedido.setTotal(0.0);
+            pedido.setEstado(EstadoPedido.pagado);
+            pedido.setCartilla_id(cartillaCompletada.getId());
+
+            if (!pedido.insertar()) {
+                conn.rollback();
+                return "Error: No se pudo crear el registro del pedido de regalo.";
+            }
+
+            DDetallePedido det = new DDetallePedido();
+            det.setPedido_id(pedido.getId());
+            det.setProducto_id(productoId);
+            det.setCantidad(1);
+            det.setPrecio_unitario(0.0);
+
+            if (!det.insertar()) {
+                conn.rollback();
+                return "Error: No se pudo crear el detalle del pedido de regalo.";
+            }
+
+            int defaultEnvaseId = 2;
+            DEnvases env = DEnvases.obtenerPorId(defaultEnvaseId);
+            if (env == null) {
+                List<DEnvases> listaEnvases = DEnvases.listar();
+                if (!listaEnvases.isEmpty()) {
+                    env = listaEnvases.get(0);
+                    defaultEnvaseId = env.getId();
+                }
+            }
+
+            if (env != null) {
+                if (env.getStock_disponible() < 1) {
+                    conn.rollback();
+                    return "Error: Inventario de envases insuficiente para la entrega del premio.";
+                }
+                env.setStock_disponible(env.getStock_disponible() - 1);
+                env.modificar();
+
+                DPedidoEnvase pe = new DPedidoEnvase();
+                pe.setPedido_origen_id(pedido.getId());
+                pe.setEnvase_id(defaultEnvaseId);
+                pe.setCantidad_prestada(1);
+                pe.setCantidad_devuelta(0);
+                pe.setFecha_devolucion(null);
+                pe.setPedido_devolucion_id(null);
+
+                if (!pe.insertar()) {
+                    conn.rollback();
+                    return "Error: No se pudo registrar el préstamo del envase para el premio.";
+                }
+            }
+
+            String updateMovSql = "UPDATE movimientos_insumo SET pedido_id = ? WHERE pedido_id IS NULL AND tipo = 'consumo'";
+            try (PreparedStatement ps = conn.prepareStatement(updateMovSql)) {
+                ps.setInt(1, pedido.getId());
+                ps.executeUpdate();
+            }
+
+            DPagos pago = new DPagos();
+            pago.setPedido_id(pedido.getId());
+            pago.setTipo_pago(TipoPago.contado);
+            if (!pago.insertar()) {
+                conn.rollback();
+                return "Error: No se pudo registrar el pago del premio.";
+            }
+
+            cartillaCompletada.setEstado("canjeada");
+            cartillaCompletada.setChifon_regalo_id(productoId);
+            cartillaCompletada.setFecha_canje(new Timestamp(System.currentTimeMillis()));
+            cartillaCompletada.modificar();
+
+            DCartillas nuevaCartilla = new DCartillas();
+            nuevaCartilla.setUsuario_id(clienteId);
+            nuevaCartilla.setEstado("activa");
+            nuevaCartilla.insertar();
+
+            conn.commit();
+
+            return "Éxito: Premio canjeado correctamente. Se registró el Pedido de regalo ID " + pedido.getId() + " (" + producto.getNombre() + "). Se ha iniciado un nuevo ciclo (nueva cartilla activa) para el cliente.";
+
+        } catch (NumberFormatException e) {
+            return "Error: Los IDs deben ser enteros.";
+        } catch (SQLException e) {
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException rollbackEx) { /* Ignorar */ }
+            }
+            return "Error en BD durante el canje de premio: " + e.getMessage();
+        } finally {
+            if (conn != null) {
+                try { conn.setAutoCommit(true); } catch (SQLException e) { /* Ignorar */ }
+            }
         }
     }
 }

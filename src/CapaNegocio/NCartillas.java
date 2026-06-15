@@ -2,6 +2,8 @@ package CapaNegocio;
 
 import CapaDatos.Conexion;
 import CapaDatos.DUsuarios;
+import CapaDatos.DCartillas;
+import CapaDatos.DProductos;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -25,57 +27,153 @@ public class NCartillas {
                 return "Error: El cliente con ID " + clienteId + " no está registrado.";
             }
 
-            String sql = "SELECT " +
-                    "    p.id                        AS pedido_id, " +
-                    "    p.fecha                     AS fecha_pedido, " +
-                    "    p.total                     AS monto_pedido, " +
-                    "    p.estado                    AS estado_pedido, " +
-                    "    COALESCE(e.nombre, 'Ninguno') AS tipo_envase, " +
-                    "    COALESCE(pe.cantidad_prestada, 0) AS cantidad_prestada, " +
-                    "    COALESCE(pe.cantidad_devuelta, 0) AS cantidad_devuelta, " +
-                    "    pe.fecha_devolucion, " +
-                    "    CASE " +
-                    "        WHEN pe.pedido_origen_id IS NULL THEN 'sin envase' " +
-                    "        WHEN pe.cantidad_devuelta = pe.cantidad_prestada THEN 'devuelto' " +
-                    "        WHEN pe.cantidad_devuelta > 0 THEN 'devuelto parcial' " +
-                    "        ELSE 'pendiente' " +
-                    "    END                         AS estado_envase " +
-                    "FROM pedidos p " +
-                    "LEFT JOIN pedido_envase pe ON pe.pedido_origen_id = p.id " +
-                    "LEFT JOIN envases e        ON e.id = pe.envase_id " +
-                    "WHERE p.usuario_id = ? " +
-                    "ORDER BY p.fecha DESC";
+            // Obtener todas las cartillas del cliente
+            List<DCartillas> cartillas = DCartillas.listarPorUsuario(clienteId);
+            if (cartillas.isEmpty()) {
+                return "El cliente " + cliente.getNombre() + " " + cliente.getApellido() + " aún no registra ninguna cartilla en el sistema.";
+            }
 
-            try (Connection conn = Conexion.getConexion();
-                 PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setInt(1, clienteId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("Cartilla Digital de Cliente: ").append(cliente.getNombre()).append(" ").append(cliente.getApellido()).append(" (ID: ").append(clienteId).append(")\n");
-                    sb.append("Pedido ID | Fecha | Monto | Estado Pedido | Envase | Prestados | Devueltos | Estado Envase\n");
-                    sb.append("--------------------------------------------------------------------------\n");
+            StringBuilder sb = new StringBuilder();
+            sb.append("CLIENTE: ").append(cliente.getNombre()).append(" ").append(cliente.getApellido()).append(" (ID: ").append(clienteId).append(")\n");
+            
+            for (DCartillas cart : cartillas) {
+                sb.append("==========================================\n");
+                sb.append("CARTILLA ID: ").append(cart.getId()).append("\n");
+                sb.append("ESTADO: ").append(cart.getEstado()).append("\n");
+                sb.append("FECHA INICIO: ").append(cart.getFecha_inicio()).append("\n");
+                sb.append("FECHA FIN: ").append(cart.getFecha_fin() != null ? cart.getFecha_fin().toString() : "N/A").append("\n");
+                sb.append("FECHA CANJE: ").append(cart.getFecha_canje() != null ? cart.getFecha_canje().toString() : "N/A").append("\n");
 
-                    boolean tienePedidos = false;
-                    while (rs.next()) {
-                        String fDevolucion = rs.getTimestamp("fecha_devolucion") != null ? rs.getTimestamp("fecha_devolucion").toString() : "N/A";
-                        sb.append(rs.getInt("pedido_id")).append(" | ")
-                          .append(rs.getTimestamp("fecha_pedido")).append(" | ")
-                          .append(rs.getDouble("monto_pedido")).append(" Bs | ")
-                          .append(rs.getString("estado_pedido").toUpperCase()).append(" | ")
-                          .append(rs.getString("tipo_envase")).append(" | ")
-                          .append(rs.getInt("cantidad_prestada")).append(" | ")
-                          .append(rs.getInt("cantidad_devuelta")).append(" | ")
-                          .append(rs.getString("estado_envase").toUpperCase()).append("\n");
-                        tienePedidos = true;
+                if (cart.getChifon_regalo_id() != null) {
+                    DProductos premio = DProductos.obtenerPorId(cart.getChifon_regalo_id());
+                    sb.append("PREMIO SABOR: ").append(premio != null ? premio.getNombre() : "Desconocido").append("\n");
+                    sb.append("PREMIO ENVASE DEVUELTO: ").append(cart.isEnvase_regalo_devuelto() ? "SÍ" : "NO").append("\n");
+                } else {
+                    sb.append("PREMIO SABOR: N/A\n");
+                    sb.append("PREMIO ENVASE DEVUELTO: N/A\n");
+                }
+
+                // Calcular acumulados de chifones y envases para esta cartilla
+                int chifonesComprados = 0;
+                int envasesDevueltos = 0;
+
+                String sqlChifonesCount = "SELECT COALESCE(SUM(dp.cantidad), 0) " +
+                                         "FROM detalle_pedido dp " +
+                                         "JOIN pedidos p ON dp.pedido_id = p.id " +
+                                         "JOIN productos pr ON dp.producto_id = pr.id " +
+                                         "WHERE p.cartilla_id = ? " +
+                                         "  AND (p.estado = 'pagado' OR p.estado = 'entregado') " +
+                                         "  AND (pr.nombre ILIKE '%chifón%' OR pr.nombre ILIKE '%chifon%') " +
+                                         "  AND dp.precio_unitario > 0";
+
+                String sqlEnvasesCount = "SELECT COALESCE(SUM(pe.cantidad_devuelta), 0) " +
+                                        "FROM pedido_envase pe " +
+                                        "JOIN pedidos p ON pe.pedido_origen_id = p.id " +
+                                        "WHERE p.cartilla_id = ?";
+
+                try (Connection conn = Conexion.getConexion()) {
+                    try (PreparedStatement ps = conn.prepareStatement(sqlChifonesCount)) {
+                        ps.setInt(1, cart.getId());
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                chifonesComprados = rs.getInt(1);
+                            }
+                        }
                     }
-
-                    if (!tienePedidos) {
-                        return "El cliente " + cliente.getNombre() + " " + cliente.getApellido() + " aún no registra ningún pedido en el sistema.";
+                    try (PreparedStatement ps = conn.prepareStatement(sqlEnvasesCount)) {
+                        ps.setInt(1, cart.getId());
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                envasesDevueltos = rs.getInt(1);
+                            }
+                        }
                     }
+                }
 
-                    return sb.toString();
+                sb.append("ACUMULADO CHIFONES: ").append(chifonesComprados).append("/10\n");
+                sb.append("ACUMULADO ENVASES: ").append(envasesDevueltos).append("/10\n");
+
+                // Obtener pedidos de esta cartilla
+                sb.append("--- PEDIDOS EN ESTA CARTILLA ---\n");
+                String sqlPedidos = "SELECT p.id, p.fecha, p.total, p.estado " +
+                                    "FROM pedidos p " +
+                                    "WHERE p.cartilla_id = ? " +
+                                    "ORDER BY p.fecha DESC";
+
+                try (Connection conn = Conexion.getConexion();
+                     PreparedStatement ps = conn.prepareStatement(sqlPedidos)) {
+                    ps.setInt(1, cart.getId());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        boolean tienePedidos = false;
+                        while (rs.next()) {
+                            int pedId = rs.getInt("id");
+                            sb.append("PEDIDO: ").append(pedId).append(" | ")
+                              .append(rs.getTimestamp("fecha")).append(" | ")
+                              .append(rs.getDouble("total")).append(" Bs | ")
+                              .append(rs.getString("estado").toUpperCase()).append(" | ");
+
+                            // Obtener productos de este pedido
+                            String sqlDetalles = "SELECT dp.cantidad, pr.nombre " +
+                                                 "FROM detalle_pedido dp " +
+                                                 "JOIN productos pr ON dp.producto_id = pr.id " +
+                                                 "WHERE dp.pedido_id = ?";
+                            try (PreparedStatement psDet = conn.prepareStatement(sqlDetalles)) {
+                                psDet.setInt(1, pedId);
+                                try (ResultSet rsDet = psDet.executeQuery()) {
+                                    StringBuilder prodSb = new StringBuilder();
+                                    while (rsDet.next()) {
+                                        if (prodSb.length() > 0) prodSb.append(", ");
+                                        prodSb.append(rsDet.getInt("cantidad")).append("x ").append(rsDet.getString("nombre"));
+                                    }
+                                    sb.append(prodSb.toString()).append("\n");
+                                }
+                            }
+                            tienePedidos = true;
+                        }
+                        if (!tienePedidos) {
+                            sb.append("Ninguno\n");
+                        }
+                    }
+                }
+
+                // Obtener control de envases prestados y devueltos en esta cartilla
+                sb.append("--- CONTROL ENVS EN ESTA CARTILLA ---\n");
+                String sqlEnvases = "SELECT pe.id, e.nombre AS tipo_envase, pe.cantidad_prestada, pe.cantidad_devuelta, pe.fecha_devolucion " +
+                                    "FROM pedido_envase pe " +
+                                    "JOIN envases e ON pe.envase_id = e.id " +
+                                    "JOIN pedidos p ON pe.pedido_origen_id = p.id " +
+                                    "WHERE p.cartilla_id = ? " +
+                                    "ORDER BY pe.id DESC";
+
+                try (Connection conn = Conexion.getConexion();
+                     PreparedStatement ps = conn.prepareStatement(sqlEnvases)) {
+                    ps.setInt(1, cart.getId());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        boolean tieneEnvases = false;
+                        while (rs.next()) {
+                            String fDevolucion = rs.getTimestamp("fecha_devolucion") != null ? rs.getTimestamp("fecha_devolucion").toString() : "N/A";
+                            int prestados = rs.getInt("cantidad_prestada");
+                            int devueltos = rs.getInt("cantidad_devuelta");
+                            String estadoEnv;
+                            if (devueltos == prestados) estadoEnv = "DEVUELTO";
+                            else if (devueltos > 0) estadoEnv = "PARCIAL";
+                            else estadoEnv = "PENDIENTE";
+
+                            sb.append("ENVASE: ").append(rs.getString("tipo_envase")).append(" | Prestados: ")
+                              .append(prestados).append(" | Devueltos: ")
+                              .append(devueltos).append(" | Fecha Dev: ")
+                              .append(fDevolucion).append(" | Estado: ")
+                              .append(estadoEnv).append("\n");
+                            tieneEnvases = true;
+                        }
+                        if (!tieneEnvases) {
+                            sb.append("Ninguno\n");
+                        }
+                    }
                 }
             }
+
+            return sb.toString();
 
         } catch (NumberFormatException e) {
             return "Error: El ID del cliente debe ser un valor entero.";

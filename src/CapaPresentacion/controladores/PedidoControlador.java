@@ -14,9 +14,9 @@ public class PedidoControlador {
                comando.equals("CU6-03") || comando.equals("LISTAR_PEDIDOS") || comando.equals("LISPED") ||
                comando.equals("CU6-04") || comando.equals("CAMBIAR_ESTADO_PEDIDO") ||
                comando.equals("CU6-05") || comando.equals("CANCELAR_PEDIDO") ||
-               comando.equals("CU7-03") || comando.equals("PAGAR_CUOTA") || comando.equals("REGISTRAR_PAGO_CUOTA") ||
-               comando.equals("CU7-04") || comando.equals("ESTADO_CUOTAS") ||
-               comando.equals("CU7-05") || comando.equals("CUOTAS_VENCIDAS");
+               comando.equals("CU7-01") || comando.equals("PAGAR_CUOTA") || comando.equals("REGISTRAR_PAGO_CUOTA") ||
+               comando.equals("CU7-02") || comando.equals("ESTADO_CUOTAS") ||
+               comando.equals("CU7-03") || comando.equals("CU7-05") || comando.equals("CUOTAS_VENCIDAS");
     }
 
     public static String handle(String comando, List<String> parametros) {
@@ -50,17 +50,18 @@ public class PedidoControlador {
                 rawResult = NPedidos.cancelarPedido(parametros);
                 break;
 
-            case "CU7-03":
+            case "CU7-01":
             case "PAGAR_CUOTA":
             case "REGISTRAR_PAGO_CUOTA":
                 rawResult = NPedidos.registrarPagoCuota(parametros);
                 break;
 
-            case "CU7-04":
+            case "CU7-02":
             case "ESTADO_CUOTAS":
                 rawResult = NPedidos.verEstadoCuotas(parametros);
                 break;
 
+            case "CU7-03":
             case "CU7-05":
             case "CUOTAS_VENCIDAS":
                 rawResult = NPedidos.verCuotasVencidas();
