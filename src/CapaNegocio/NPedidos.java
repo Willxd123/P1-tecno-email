@@ -887,6 +887,16 @@ public class NPedidos {
                 return "Error: El premio solo puede ser de la categoría Tradicional (como el Chifón de Naranja Clásico).";
             }
 
+            // Forzar una actualización del progreso de la cartilla activa por si acaso
+            try {
+                DCartillas cartActiva = DCartillas.obtenerActivaPorUsuario(clienteId);
+                if (cartActiva != null) {
+                    actualizarProgresoCartilla(clienteId, cartActiva.getId());
+                }
+            } catch (SQLException e) {
+                System.err.println("[NPedidos] Error al actualizar cartilla activa en canje: " + e.getMessage());
+            }
+
             DCartillas cartillaCompletada = null;
             String sqlFindCompleted = "SELECT * FROM cartillas WHERE usuario_id = ? AND estado = 'completada' ORDER BY fecha_fin ASC LIMIT 1";
             try (Connection checkConn = Conexion.getConexion();

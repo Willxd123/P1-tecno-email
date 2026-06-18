@@ -10,7 +10,7 @@ public class CartillaControlador {
     public static boolean canHandle(String comando) {
         if (comando == null) return false;
         comando = comando.toUpperCase().trim();
-        return comando.equals("CU4-01") || comando.equals("VERCAR") || comando.equals("VER_CARTILLA")
+        return comando.equals("CU4_01") || comando.equals("VERCAR") || comando.equals("VER_CARTILLA")
             || comando.equals("CU4-02") || comando.equals("CU4-06") || comando.equals("CANJEAR_PREMIO");
     }
 

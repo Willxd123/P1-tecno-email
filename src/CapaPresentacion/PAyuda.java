@@ -166,7 +166,7 @@ public class PAyuda {
                "          <td><strong>LISTAR_USUARIOS</strong></td>\n" +
                "          <td>Listar Usuarios (Read)</td>\n" +
                "          <td>\n" +
-               "            <span class=\"code-pattern\">LISTAR_USUARIOS</span> o <span class=\"code-pattern\">CU1-05</span> o <span class=\"code-pattern\">LISUSR</span>\n" +
+               "            <span class=\"code-pattern\">LISTAR_USUARIOS</span> o <span class=\"code-pattern\">LISUSR</span>\n" +
                "          </td>\n" +
                "        </tr>\n" +
                "        <tr>\n" +

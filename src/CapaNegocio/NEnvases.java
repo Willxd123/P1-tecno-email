@@ -226,6 +226,17 @@ public class NEnvases {
                 // Devolver stock al almacén
                 env.setStock_disponible(env.getStock_disponible() + cantidadDevuelta);
                 env.modificar();
+
+                // Actualizar progreso de la cartilla
+                try {
+                    CapaDatos.DPedidos ped = CapaDatos.DPedidos.obtenerPorId(pedidoOrigenId);
+                    if (ped != null) {
+                        NPedidos.actualizarProgresoCartilla(ped.getUsuario_id(), ped.getCartilla_id());
+                    }
+                } catch (Exception e) {
+                    System.err.println("[NEnvases] Error al actualizar progreso de cartilla tras devolución: " + e.getMessage());
+                }
+
                 return "Éxito: Devolución registrada correctamente. " + cantidadDevuelta + " unidades de '" + env.getNombre() + "' devueltas.";
             } else {
                 return "Error: No se pudo registrar la devolución.";
