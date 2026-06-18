@@ -22,7 +22,7 @@ public class PRoles {
         } else {
             // Es un mensaje de éxito o de error
             String alertClass = esError ? "alert-error" : "alert-success";
-            String alertTitle = esError ? "⚠️ OCURRIÓ UN INCONVENIENTE" : "🎉 OPERACIÓN EXITOSA";
+            String alertTitle = esError ? "OCURRIÓ UN INCONVENIENTE" : "OPERACIÓN EXITOSA";
             
             bodyHtml.append("<div class=\"alert ").append(alertClass).append("\">")
                     .append("<strong>").append(alertTitle).append("</strong><br>")
@@ -219,7 +219,7 @@ public class PRoles {
                "  <div class=\"container\">\n" +
                "    <div class=\"header\">\n" +
                "      <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuzú Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">\n" +
-               "      <h1>🍰 “CHIFONES PERUANOS ZUZÚ” 🍰</h1>\n" +
+               "      <h1>“CHIFONES PERUANOS ZUZÚ”</h1>\n" +
                "      <p>Sistema Automatizado por Correo Electrónico</p>\n" +
                "    </div>\n" +
                "    <div class=\"content\">\n" +

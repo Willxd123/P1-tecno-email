@@ -865,7 +865,25 @@ public class NPedidos {
             if (!prodNombreLower.contains("chifón") && !prodNombreLower.contains("chifon")) {
                 return "Error: El premio solo puede ser un chifón.";
             }
-            if (!prodNombreLower.contains("clásico") && !prodNombreLower.contains("clasico") && !prodNombreLower.contains("tradicional") && productoId != 11) {
+
+            boolean esTradicional = false;
+            if (producto.getCategoria_producto_id() != null) {
+                CapaDatos.DCategoriaProducto cat = CapaDatos.DCategoriaProducto.obtenerPorId(producto.getCategoria_producto_id());
+                if (cat != null) {
+                    String catNombre = cat.getNombre().toLowerCase();
+                    if (catNombre.contains("tradicional") || catNombre.contains("clásico") || catNombre.contains("clasico")) {
+                        esTradicional = true;
+                    }
+                }
+            }
+
+            if (!esTradicional) {
+                if (prodNombreLower.contains("clásico") || prodNombreLower.contains("clasico") || prodNombreLower.contains("tradicional") || productoId == 11) {
+                    esTradicional = true;
+                }
+            }
+
+            if (!esTradicional) {
                 return "Error: El premio solo puede ser de la categoría Tradicional (como el Chifón de Naranja Clásico).";
             }
 
@@ -886,7 +904,7 @@ public class NPedidos {
                             rs.getTimestamp("fecha_fin"),
                             chifonId,
                             rs.getTimestamp("fecha_canje"),
-                            rs.getBoolean("envase_regalo_devuelto")
+                            rs.getBoolean("envase_devuelto")
                         );
                     }
                 }

@@ -14,7 +14,7 @@ public class PReportes {
             bodyHtml.append(parsearTablaAscii(comando, resultado));
         } else {
             String alertClass = esError ? "alert-error" : "alert-success";
-            String alertTitle = esError ? "⚠️ ADVERTENCIA / ERROR" : "📊 INFORMACIÓN";
+            String alertTitle = esError ? "ADVERTENCIA / ERROR" : "INFORMACIÓN";
             
             bodyHtml.append("<div class=\"alert ").append(alertClass).append("\">")
                     .append("<strong>").append(alertTitle).append("</strong><br>")
@@ -236,7 +236,7 @@ public class PReportes {
                "  <div class=\"container\">\n" +
                "    <div class=\"header\">\n" +
                "      <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuzú Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">\n" +
-               "      <h1>📊 REPORTE DE GESTIÓN GERENCIAL 📊</h1>\n" +
+               "      <h1>REPORTE DE GESTIÓN GERENCIAL</h1>\n" +
                "      <p>Módulo de Inteligencia de Negocio y Estadísticas</p>\n" +
                "    </div>\n" +
                "    <div class=\"content\">\n" +

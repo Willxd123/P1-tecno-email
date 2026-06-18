@@ -17,11 +17,11 @@ public class DCartillas {
     private Timestamp fecha_fin;
     private Integer chifon_regalo_id;
     private Timestamp fecha_canje;
-    private boolean envase_regalo_devuelto;
+    private boolean envase_devuelto;
 
     public DCartillas() {}
 
-    public DCartillas(int id, int usuario_id, String estado, Timestamp fecha_inicio, Timestamp fecha_fin, Integer chifon_regalo_id, Timestamp fecha_canje, boolean envase_regalo_devuelto) {
+    public DCartillas(int id, int usuario_id, String estado, Timestamp fecha_inicio, Timestamp fecha_fin, Integer chifon_regalo_id, Timestamp fecha_canje, boolean envase_devuelto) {
         this.id = id;
         this.usuario_id = usuario_id;
         this.estado = estado;
@@ -29,7 +29,7 @@ public class DCartillas {
         this.fecha_fin = fecha_fin;
         this.chifon_regalo_id = chifon_regalo_id;
         this.fecha_canje = fecha_canje;
-        this.envase_regalo_devuelto = envase_regalo_devuelto;
+        this.envase_devuelto = envase_devuelto;
     }
 
     // Getters y Setters
@@ -47,15 +47,15 @@ public class DCartillas {
     public void setChifon_regalo_id(Integer chifon_regalo_id) { this.chifon_regalo_id = chifon_regalo_id; }
     public Timestamp getFecha_canje() { return fecha_canje; }
     public void setFecha_canje(Timestamp fecha_canje) { this.fecha_canje = fecha_canje; }
-    public boolean isEnvase_regalo_devuelto() { return envase_regalo_devuelto; }
-    public void setEnvase_regalo_devuelto(boolean envase_regalo_devuelto) { this.envase_regalo_devuelto = envase_regalo_devuelto; }
+    public boolean isEnvase_devuelto() { return envase_devuelto; }
+    public void setEnvase_devuelto(boolean envase_devuelto) { this.envase_devuelto = envase_devuelto; }
 
     // ==========================================
     // OPERACIONES CRUD CON LA BASE DE DATOS
     // ==========================================
 
     public boolean insertar() throws SQLException {
-        String sql = "INSERT INTO cartillas (usuario_id, estado, fecha_fin, chifon_regalo_id, fecha_canje, envase_regalo_devuelto) " +
+        String sql = "INSERT INTO cartillas (usuario_id, estado, fecha_fin, chifon_regalo_id, fecha_canje, envase_devuelto) " +
                      "VALUES (?, ?, ?, ?, ?, ?) RETURNING id, fecha_inicio";
         try (Connection conn = Conexion.getConexion();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -68,7 +68,7 @@ public class DCartillas {
                 ps.setNull(4, Types.INTEGER);
             }
             ps.setTimestamp(5, this.fecha_canje);
-            ps.setBoolean(6, this.envase_regalo_devuelto);
+            ps.setBoolean(6, this.envase_devuelto);
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -83,7 +83,7 @@ public class DCartillas {
 
     public boolean modificar() throws SQLException {
         String sql = "UPDATE cartillas SET usuario_id = ?, estado = ?, fecha_inicio = ?, fecha_fin = ?, " +
-                     "chifon_regalo_id = ?, fecha_canje = ?, envase_regalo_devuelto = ? WHERE id = ?";
+                     "chifon_regalo_id = ?, fecha_canje = ?, envase_devuelto = ? WHERE id = ?";
         try (Connection conn = Conexion.getConexion();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, this.usuario_id);
@@ -96,7 +96,7 @@ public class DCartillas {
                 ps.setNull(5, Types.INTEGER);
             }
             ps.setTimestamp(6, this.fecha_canje);
-            ps.setBoolean(7, this.envase_regalo_devuelto);
+            ps.setBoolean(7, this.envase_devuelto);
             ps.setInt(8, this.id);
 
             return ps.executeUpdate() > 0;
@@ -129,7 +129,7 @@ public class DCartillas {
                         rs.getTimestamp("fecha_fin"),
                         chifonId,
                         rs.getTimestamp("fecha_canje"),
-                        rs.getBoolean("envase_regalo_devuelto")
+                        rs.getBoolean("envase_devuelto")
                     );
                 }
             }
@@ -155,7 +155,7 @@ public class DCartillas {
                         rs.getTimestamp("fecha_fin"),
                         chifonId,
                         rs.getTimestamp("fecha_canje"),
-                        rs.getBoolean("envase_regalo_devuelto")
+                        rs.getBoolean("envase_devuelto")
                     ));
                 }
             }
@@ -180,7 +180,7 @@ public class DCartillas {
                         rs.getTimestamp("fecha_fin"),
                         chifonId,
                         rs.getTimestamp("fecha_canje"),
-                        rs.getBoolean("envase_regalo_devuelto")
+                        rs.getBoolean("envase_devuelto")
                     );
                 }
             }

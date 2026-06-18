@@ -47,7 +47,7 @@ public class NCartillas {
                 if (cart.getChifon_regalo_id() != null) {
                     DProductos premio = DProductos.obtenerPorId(cart.getChifon_regalo_id());
                     sb.append("PREMIO SABOR: ").append(premio != null ? premio.getNombre() : "Desconocido").append("\n");
-                    sb.append("PREMIO ENVASE DEVUELTO: ").append(cart.isEnvase_regalo_devuelto() ? "SÍ" : "NO").append("\n");
+                    sb.append("PREMIO ENVASE DEVUELTO: ").append(cart.isEnvase_devuelto() ? "SÍ" : "NO").append("\n");
                 } else {
                     sb.append("PREMIO SABOR: N/A\n");
                     sb.append("PREMIO ENVASE DEVUELTO: N/A\n");

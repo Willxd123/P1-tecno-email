@@ -3,7 +3,7 @@ package CapaPresentacion;
 public class PCartillas {
 
     public static String generarHtml(String comando, String resultado) {
-        String tituloModulo = "Cartilla Digital del Cliente - “CHIFONES PERUANOS ZUZÚ”";
+        String tituloModulo = "Cartilla Digital del Cliente - “CHIFONES PERUANOS ZUZU”";
         StringBuilder bodyHtml = new StringBuilder();
 
         boolean esError = resultado.trim().toLowerCase().startsWith("error");
@@ -14,7 +14,7 @@ public class PCartillas {
             bodyHtml.append(parsearEstructuraCartillas(resultado));
         } else {
             String alertClass = esError ? "alert-error" : "alert-success";
-            String alertTitle = esError ? "⚠️ ADVERTENCIA / ERROR" : "🎉 INFORMACIÓN";
+            String alertTitle = esError ? "ADVERTENCIA / ERROR" : "INFORMACIÓN";
             
             bodyHtml.append("<div class=\"alert ").append(alertClass).append("\">")
                     .append("<strong>").append(alertTitle).append("</strong><br>")
@@ -143,10 +143,10 @@ public class PCartillas {
             String badgeText = "ACTIVA - EN PROGRESO";
             if (estado.equalsIgnoreCase("completada")) {
                 cardHeaderClass = "cartilla-completada";
-                badgeText = "⭐ ¡COMPLETADA! LISTA PARA CANJEAR";
+                badgeText = "¡COMPLETADA! LISTA PARA CANJEAR";
             } else if (estado.equalsIgnoreCase("canjeada")) {
                 cardHeaderClass = "cartilla-canjeada";
-                badgeText = "✅ CANJEADA E HISTÓRICA";
+                badgeText = "CANJEADA E HISTÓRICA";
             }
 
             html.append("<div class=\"cartilla-card\">")
@@ -171,7 +171,7 @@ public class PCartillas {
                     .append("        <div class=\"stamp-grid\">");
                 for (int s = 1; s <= 10; s++) {
                     if (s <= chifonesNum) {
-                        html.append("<span class=\"stamp stamp-filled\">🍰</span>");
+                        html.append("<span class=\"stamp stamp-filled\"></span>");
                     } else {
                         html.append("<span class=\"stamp stamp-empty\">").append(s).append("</span>");
                     }
@@ -184,7 +184,7 @@ public class PCartillas {
                     .append("        <div class=\"stamp-grid\">");
                 for (int s = 1; s <= 10; s++) {
                     if (s <= envasesNum) {
-                        html.append("<span class=\"stamp stamp-filled\">♻️</span>");
+                        html.append("<span class=\"stamp stamp-filled\">♻</span>");
                     } else {
                         html.append("<span class=\"stamp stamp-empty\">").append(s).append("</span>");
                     }
@@ -195,7 +195,7 @@ public class PCartillas {
                 
                 if (estado.equalsIgnoreCase("completada")) {
                     html.append("<div class=\"claim-box\">")
-                        .append("  <strong>🎁 ¡PREMIO HABILITADO!</strong><br>")
+                        .append("  <strong>¡PREMIO HABILITADO!</strong><br>")
                         .append("  Ya puedes reclamar tu chifón tradicional de regalo. Envía el comando:<br>")
                         .append("  <span class=\"code-pattern\">CANJEAR_PREMIO[\"ClienteID\", \"11\"]</span>")
                         .append("</div>");
@@ -203,11 +203,11 @@ public class PCartillas {
             } else {
                 // Si ya fue canjeada, mostrar el premio detallado
                 html.append("<div class=\"premio-box\">")
-                    .append("  <h4>🎁 DETALLES DEL PREMIO ENTREGADO</h4>")
+                    .append("  <h4>DETALLES DEL PREMIO ENTREGADO</h4>")
                     .append("  <table style=\"margin-top: 5px; border: none;\">")
                     .append("    <tr><td><strong>Sabor Obsequiado:</strong></td><td><span style=\"color:#7c3aed; font-weight:bold;\">").append(premioSabor).append("</span></td></tr>")
                     .append("    <tr><td><strong>Fecha de Reclamación:</strong></td><td>").append(fechaCanje).append("</td></tr>")
-                    .append("    <tr><td><strong>Envase de Regalo Devuelto:</strong></td><td>")
+                    .append("    <tr><td><strong>Envase Devuelto:</strong></td><td>")
                     .append("      <span class=\"badge badge-").append(premioEnvase.equalsIgnoreCase("SÍ") ? "si" : "no").append("\">").append(premioEnvase).append("</span>")
                     .append("    </td></tr>")
                     .append("  </table>")
@@ -221,7 +221,7 @@ public class PCartillas {
                 .append(pedidosHtml.length() > 0 ? pedidosHtml.toString() : "<tr><td colspan=\"5\" style=\"text-align:center;color:#9ca3af;\">Ningún pedido en esta cartilla.</td></tr>")
                 .append("    </table>");
 
-            html.append("    <h4 class=\"seccion-card-title\" style=\"margin-top: 25px;\">♻️ Control de Envases</h4>")
+            html.append("    <h4 class=\"seccion-card-title\" style=\"margin-top: 25px;\">Control de Envases</h4>")
                 .append("    <table>")
                 .append("      <tr><th>Tipo de Envase</th><th style=\"text-align:center;\">Prestados</th><th style=\"text-align:center;\">Devueltos</th><th>Fecha Devolución</th><th>Estado Envase</th></tr>")
                 .append(envasesHtml.length() > 0 ? envasesHtml.toString() : "<tr><td colspan=\"5\" style=\"text-align:center;color:#9ca3af;\">Ningún envase prestado.</td></tr>")
@@ -500,7 +500,7 @@ public class PCartillas {
                "  <div class=\"container\">\n" +
                "    <div class=\"header\">\n" +
                "      <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuzú Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">\n" +
-               "      <h1>📂 CARTILLA DIGITAL DEL CLIENTE 📂</h1>\n" +
+               "      <h1>CARTILLA DIGITAL DEL CLIENTE</h1>\n" +
                "      <p>Historial Consolidado de Pedidos y Envases</p>\n" +
                "    </div>\n" +
                "    <div class=\"content\">\n" +

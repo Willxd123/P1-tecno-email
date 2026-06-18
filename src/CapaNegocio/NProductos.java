@@ -11,10 +11,10 @@ import java.util.List;
 public class NProductos {
 
     // CU5-01: Registrar Producto
-    // Params: ["Nombre", "Descripcion", "PrecioUnitario"]
+    // Params: ["Nombre", "Descripcion", "PrecioUnitario", "CategoriaID"]
     public static String registrarProducto(List<String> parametros) {
         if (parametros.size() < 3) {
-            return "Error: Faltan parámetros. Uso: CU5-01[\"Nombre\",\"Descripcion\",\"PrecioUnitario\"]";
+            return "Error: Faltan parámetros. Uso: CU5-01[\"Nombre\",\"Descripcion\",\"PrecioUnitario\"] o CU5-01[\"Nombre\",\"Descripcion\",\"PrecioUnitario\",\"CategoriaID\"]";
         }
         try {
             String nombre = parametros.get(0).trim();
@@ -28,29 +28,41 @@ public class NProductos {
                 return "Error: El precio unitario debe ser mayor a 0.";
             }
 
+            Integer categoriaId = null;
+            if (parametros.size() >= 4) {
+                String catStr = parametros.get(3).trim();
+                if (!catStr.isEmpty() && !catStr.equalsIgnoreCase("null") && !catStr.equalsIgnoreCase("0")) {
+                    categoriaId = Integer.parseInt(catStr);
+                    if (CapaDatos.DCategoriaProducto.obtenerPorId(categoriaId) == null) {
+                        return "Error: No existe la categoría con ID " + categoriaId;
+                    }
+                }
+            }
+
             DProductos prod = new DProductos();
             prod.setNombre(nombre);
             prod.setDescripcion(descripcion);
             prod.setPrecio_unitario(precioUnitario);
             prod.setDisponible(true); // Activo por defecto
+            prod.setCategoria_producto_id(categoriaId);
 
             if (prod.insertar()) {
                 return "Éxito: Producto '" + nombre + "' registrado correctamente con ID " + prod.getId();
             } else {
-                return "Error: No se pudo registrar el producto.";
+                return "Error: No se pudo registrar the producto.";
             }
         } catch (NumberFormatException e) {
-            return "Error: El precio unitario debe ser numérico.";
+            return "Error: El precio unitario y CategoriaID deben ser numéricos.";
         } catch (SQLException e) {
             return "Error en BD: " + e.getMessage();
         }
     }
 
     // CU5-02: Editar Producto
-    // Params: ["ID", "Nombre", "Descripcion", "PrecioUnitario"]
+    // Params: ["ID", "Nombre", "Descripcion", "PrecioUnitario", "CategoriaID"]
     public static String editarProducto(List<String> parametros) {
         if (parametros.size() < 4) {
-            return "Error: Faltan parámetros. Uso: CU5-02[\"ID\",\"Nombre\",\"Descripcion\",\"PrecioUnitario\"]";
+            return "Error: Faltan parámetros. Uso: CU5-02[\"ID\",\"Nombre\",\"Descripcion\",\"PrecioUnitario\"] o CU5-02[\"ID\",\"Nombre\",\"Descripcion\",\"PrecioUnitario\",\"CategoriaID\"]";
         }
         try {
             int id = Integer.parseInt(parametros.get(0).trim());
@@ -70,9 +82,21 @@ public class NProductos {
                 return "Error: El precio unitario debe ser mayor a 0.";
             }
 
+            Integer categoriaId = null;
+            if (parametros.size() >= 5) {
+                String catStr = parametros.get(4).trim();
+                if (!catStr.isEmpty() && !catStr.equalsIgnoreCase("null") && !catStr.equalsIgnoreCase("0")) {
+                    categoriaId = Integer.parseInt(catStr);
+                    if (CapaDatos.DCategoriaProducto.obtenerPorId(categoriaId) == null) {
+                        return "Error: No existe la categoría con ID " + categoriaId;
+                    }
+                }
+            }
+
             prod.setNombre(nombre);
             prod.setDescripcion(descripcion);
             prod.setPrecio_unitario(precioUnitario);
+            prod.setCategoria_producto_id(categoriaId);
 
             if (prod.modificar()) {
                 return "Éxito: Producto ID " + id + " modificado correctamente.";
@@ -80,7 +104,7 @@ public class NProductos {
                 return "Error: No se pudo modificar el producto.";
             }
         } catch (NumberFormatException e) {
-            return "Error: ID debe ser entero y precio debe ser numérico.";
+            return "Error: ID y CategoriaID deben ser enteros, y precio debe ser numérico.";
         } catch (SQLException e) {
             return "Error en BD: " + e.getMessage();
         }
@@ -124,14 +148,22 @@ public class NProductos {
             }
 
             StringBuilder sb = new StringBuilder();
-            sb.append("ID | Nombre | Descripción | Precio Unitario | Disponible\n");
-            sb.append("--------------------------------------------------------------------------\n");
+            sb.append("ID | Nombre | Descripción | Precio Unitario | Disponible | Categoría\n");
+            sb.append("-------------------------------------------------------------------------------------\n");
             for (DProductos prod : lista) {
+                String catNombre = "Ninguna";
+                if (prod.getCategoria_producto_id() != null) {
+                    CapaDatos.DCategoriaProducto cat = CapaDatos.DCategoriaProducto.obtenerPorId(prod.getCategoria_producto_id());
+                    if (cat != null) {
+                        catNombre = cat.getNombre() + " (ID: " + cat.getId() + ")";
+                    }
+                }
                 sb.append(prod.getId()).append(" | ")
                   .append(prod.getNombre()).append(" | ")
                   .append(prod.getDescripcion()).append(" | ")
                   .append(prod.getPrecio_unitario()).append(" | ")
-                  .append(prod.isDisponible() ? "SÍ" : "NO").append("\n");
+                  .append(prod.isDisponible() ? "SÍ" : "NO").append(" | ")
+                  .append(catNombre).append("\n");
             }
             return sb.toString();
         } catch (SQLException e) {
@@ -307,6 +339,116 @@ public class NProductos {
             return sb.toString();
         } catch (NumberFormatException e) {
             return "Error: El ID del producto debe ser un entero.";
+        } catch (SQLException e) {
+            return "Error en BD: " + e.getMessage();
+        }
+    }
+
+    // ==========================================================
+    // OPERACIONES DE CATEGORÍAS DE PRODUCTOS
+    // ==========================================================
+
+    // REGISTRAR_CATEGORIA["Nombre"]
+    public static String registrarCategoria(List<String> parametros) {
+        if (parametros.isEmpty()) {
+            return "Error: Falta parámetro. Uso: REGISTRAR_CATEGORIA[\"Nombre\"]";
+        }
+        try {
+            String nombre = parametros.get(0).trim();
+            if (nombre.isEmpty()) {
+                return "Error: El nombre de la categoría no puede estar vacío.";
+            }
+
+            if (CapaDatos.DCategoriaProducto.obtenerPorNombre(nombre) != null) {
+                return "Error: Ya existe una categoría con el nombre '" + nombre + "'.";
+            }
+
+            CapaDatos.DCategoriaProducto cat = new CapaDatos.DCategoriaProducto();
+            cat.setNombre(nombre);
+
+            if (cat.insertar()) {
+                return "Éxito: Categoría '" + nombre + "' registrada correctamente con ID " + cat.getId();
+            } else {
+                return "Error: No se pudo registrar la categoría.";
+            }
+        } catch (SQLException e) {
+            return "Error en BD: " + e.getMessage();
+        }
+    }
+
+    // LISTAR_CATEGORIAS[]
+    public static String listarCategorias() {
+        try {
+            List<CapaDatos.DCategoriaProducto> lista = CapaDatos.DCategoriaProducto.listar();
+            if (lista.isEmpty()) {
+                return "No hay categorías registradas en el catálogo.";
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("ID | Nombre de Categoría\n");
+            sb.append("---------------------------------------\n");
+            for (CapaDatos.DCategoriaProducto cat : lista) {
+                sb.append(cat.getId()).append(" | ").append(cat.getNombre()).append("\n");
+            }
+            return sb.toString();
+        } catch (SQLException e) {
+            return "Error al listar categorías: " + e.getMessage();
+        }
+    }
+
+    // ASIGNAR_CATEGORIA["ProductoID", "CategoriaID"]
+    public static String asignarCategoria(List<String> parametros) {
+        if (parametros.size() < 2) {
+            return "Error: Faltan parámetros. Uso: ASIGNAR_CATEGORIA[\"ProductoID\",\"CategoriaID\"]";
+        }
+        try {
+            int productoId = Integer.parseInt(parametros.get(0).trim());
+            int categoriaId = Integer.parseInt(parametros.get(1).trim());
+
+            DProductos prod = DProductos.obtenerPorId(productoId);
+            if (prod == null) {
+                return "Error: No existe el producto con ID " + productoId;
+            }
+
+            CapaDatos.DCategoriaProducto cat = CapaDatos.DCategoriaProducto.obtenerPorId(categoriaId);
+            if (cat == null) {
+                return "Error: No existe la categoría con ID " + categoriaId;
+            }
+
+            prod.setCategoria_producto_id(categoriaId);
+            if (prod.modificar()) {
+                return "Éxito: Producto '" + prod.getNombre() + "' asignado a la categoría '" + cat.getNombre() + "' correctamente.";
+            } else {
+                return "Error: No se pudo asignar la categoría al producto.";
+            }
+        } catch (NumberFormatException e) {
+            return "Error: Los IDs deben ser números enteros.";
+        } catch (SQLException e) {
+            return "Error en BD: " + e.getMessage();
+        }
+    }
+
+    // QUITAR_CATEGORIA["ProductoID"]
+    public static String quitarCategoria(List<String> parametros) {
+        if (parametros.isEmpty()) {
+            return "Error: Falta parámetro. Uso: QUITAR_CATEGORIA[\"ProductoID\"]";
+        }
+        try {
+            int productoId = Integer.parseInt(parametros.get(0).trim());
+
+            DProductos prod = DProductos.obtenerPorId(productoId);
+            if (prod == null) {
+                return "Error: No existe el producto con ID " + productoId;
+            }
+
+            prod.setCategoria_producto_id(null);
+            if (prod.modificar()) {
+                return "Éxito: Producto '" + prod.getNombre() + "' removido de su categoría correctamente.";
+            } else {
+                return "Error: No se pudo remover la categoría del producto.";
+            }
+        } catch (NumberFormatException e) {
+            return "Error: El ID del producto debe ser un número entero.";
         } catch (SQLException e) {
             return "Error en BD: " + e.getMessage();
         }

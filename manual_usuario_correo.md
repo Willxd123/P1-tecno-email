@@ -172,3 +172,82 @@ Si tienes dudas sobre la sintaxis o los comandos admitidos, puedes enviar un cor
 `HELP` o `AYUDA`
 
 El sistema te responderá inmediatamente con un correo en formato HTML que contiene la guía de uso de comandos de forma interactiva y detallada.
+
+---
+
+## 5. Comandos para Gestión de Productos y Categorías (Caso de Uso 5)
+
+### A) Registrar Categoría (`REGISTRAR_CATEGORIA`)
+Crea una nueva categoría para agrupar productos en el catálogo.
+* **Parámetros:** `["Nombre"]`
+* **Ejemplo de Entrada (Asunto):**
+  `REGISTRAR_CATEGORIA["Chifones Familiares"]`
+* **Ejemplo de Respuesta Visual (HTML):**
+  > **🎉 OPERACIÓN EXITOSA**
+  > Éxito: Categoría 'Chifones Familiares' registrada correctamente con ID 4.
+
+---
+
+### B) Listar Categorías (`LISTAR_CATEGORIAS`)
+Muestra la lista de categorías en una tabla HTML.
+* **Parámetros:** Ninguno.
+* **Ejemplo de Entrada (Asunto):**
+  `LISTAR_CATEGORIAS`
+* **Ejemplo de Respuesta Visual (HTML):**
+  | ID | Nombre de Categoría |
+  | :--- | :--- |
+  | 1 | Chifones Medianos |
+  | 2 | Chifones Grandes |
+  | 4 | Chifones Familiares |
+
+---
+
+### C) Registrar Producto (`CU5-01` o `REGISTRAR_PRODUCTO`)
+Inserta un nuevo producto y opcionalmente lo asigna a una categoría.
+* **Parámetros:** `["Nombre", "Descripción", "PrecioUnitario", "CategoriaID*"]`
+* **Ejemplo de Entrada con Categoría (Asunto):**
+  `CU5-01["Chifón de Naranja","Con cobertura de glasé","45.00","1"]`
+* **Ejemplo de Entrada sin Categoría (Asunto):**
+  `REGISTRAR_PRODUCTO["Chifón Limón","Con ralladura fresca","40.00","0"]`
+* **Ejemplo de Respuesta Visual (HTML):**
+  > **🎉 OPERACIÓN EXITOSA**
+  > Éxito: Producto 'Chifón de Naranja' registrado correctamente con ID 12.
+
+---
+
+### D) Editar Producto (`CU5-02` o `EDITAR_PRODUCTO`)
+Modifica los datos de un producto y su categoría asignada.
+* **Parámetros:** `["ID", "Nombre", "Descripción", "PrecioUnitario", "CategoriaID*"]`
+* **Ejemplo de Entrada (Asunto):**
+  `CU5-02["12","Chifón Naranja Premium","Cobertura especial","50.00","2"]`
+
+---
+
+### E) Listar Productos (`CU5-04`, `LISPROD` o `LISTAR_PRODUCTOS`)
+Retorna el catálogo completo con la columna de categoría asignada.
+* **Parámetros:** Ninguno.
+* **Ejemplo de Entrada (Asunto):**
+  `LISTAR_PRODUCTOS`
+
+---
+
+### F) Asignar Categoría a Producto (`ASIGNAR_CATEGORIA`)
+Asigna una categoría específica a un producto existente.
+* **Parámetros:** `["ProductoID", "CategoriaID"]`
+* **Ejemplo de Entrada (Asunto):**
+  `ASIGNAR_CATEGORIA["12","1"]`
+* **Ejemplo de Respuesta Visual (HTML):**
+  > **🎉 OPERACIÓN EXITOSA**
+  > Éxito: Producto 'Chifón Naranja Premium' asignado a la categoría 'Chifones Medianos' correctamente.
+
+---
+
+### G) Quitar Categoría de Producto (`QUITAR_CATEGORIA`)
+Remueve la categoría de un producto (lo deja sin categoría / en "Ninguna").
+* **Parámetros:** `["ProductoID"]`
+* **Ejemplo de Entrada (Asunto):**
+  `QUITAR_CATEGORIA["12"]`
+* **Ejemplo de Respuesta Visual (HTML):**
+  > **🎉 OPERACIÓN EXITOSA**
+  > Éxito: Producto 'Chifón Naranja Premium' removido de su categoría correctamente.
+

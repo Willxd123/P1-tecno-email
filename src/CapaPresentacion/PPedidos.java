@@ -14,7 +14,7 @@ public class PPedidos {
             bodyHtml.append(parsearTablaAscii(resultado));
         } else {
             String alertClass = esError ? "alert-error" : "alert-success";
-            String alertTitle = esError ? "⚠️ ADVERTENCIA / ERROR" : "🎉 OPERACIÓN EXITOSA";
+            String alertTitle = esError ? "ADVERTENCIA / ERROR" : "OPERACIÓN EXITOSA";
             
             String formattedResult = resultado;
             if (!resultado.contains("<img") && !resultado.contains("<div")) {
@@ -237,7 +237,7 @@ public class PPedidos {
                "  <div class=\"container\">\n" +
                "    <div class=\"header\">\n" +
                "      <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuzú Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">\n" +
-               "      <h1>💰 CONTROL DE PEDIDOS Y PAGOS 💰</h1>\n" +
+               "      <h1>CONTROL DE PEDIDOS Y PAGOS</h1>\n" +
                "      <p>Sistema Automatizado por Correo Electrónico</p>\n" +
                "    </div>\n" +
                "    <div class=\"content\">\n" +

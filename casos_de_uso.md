@@ -90,12 +90,14 @@ Administración del catálogo de productos disponibles para la venta.
 
 | Código | Nombre | Propietario | Secretario | Cliente | Descripción |
 |---|---|---|---|---|---|
-| CU5-01 | Registrar producto | ✓ | ✓ | — | Agregar un nuevo producto al catálogo con nombre, descripción y precio unitario |
-| CU5-02 | Editar producto | ✓ | ✓ | — | Modificar nombre, descripción o precio de un producto existente |
+| CU5-01 | Registrar producto | ✓ | ✓ | — | Agregar un nuevo producto al catálogo con nombre, descripción, precio unitario y categoría opcional |
+| CU5-02 | Editar producto | ✓ | ✓ | — | Modificar nombre, descripción, precio o categoría de un producto existente |
 | CU5-03 | Activar o desactivar producto | ✓ | ✓ | — | Cambiar el campo `disponible` para ocultar o mostrar un producto sin eliminarlo |
-| CU5-04 | Listar productos disponibles | ✓ | ✓ | ✓ | Ver el catálogo de productos activos con nombre, descripción y precio actual |
+| CU5-04 | Listar productos disponibles | ✓ | ✓ | ✓ | Ver el catálogo de productos activos con nombre, descripción, precio y categoría |
 | CU5-05 | Ver costo de producción de producto | ✓ | — | — | Calcular el costo total de insumos que requiere producir una unidad del producto en base a su receta y `costo_unitario` de cada insumo |
 | CU5-06 | Verificar disponibilidad de insumos | ✓ | ✓ | — | Antes de confirmar un pedido verificar si hay stock suficiente de todos los insumos de la receta para la cantidad solicitada |
+| CU5-07 | Registrar categoría | ✓ | — | — | Crear una nueva categoría para agrupar los productos |
+| CU5-08 | Listar categorías | ✓ | ✓ | ✓ | Ver el listado de todas las categorías de producto registradas |
 
 ---
 

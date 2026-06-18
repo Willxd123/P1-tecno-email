@@ -375,7 +375,8 @@ public class PAyuda {
                "          <td>Registrar Devolución de Envases</td>\n" +
                "          <td>\n" +
                "            <span class=\"code-pattern\">DEVOLUCION_ENVASE[\"PedidoOrigenID\",\"PedidoDevolucionID\",\"EnvaseID\",\"CantidadDevuelta\"]</span><br>\n" +
-               "            <span class=\"code-example\">DEVOLUCION_ENVASE[\"1\",\"2\",\"1\",\"2\"]</span>\n" +
+               "            <span class=\"code-example\">Ejemplo (1 envase): DEVOLUCION_ENVASE[\"1029\",\"1029\",\"2\",\"1\"]</span><br>\n" +
+               "            <span class=\"code-example\">Ejemplo (más envases): DEVOLUCION_ENVASE[\"1024\",\"1026\",\"2\",\"3\"]</span>\n" +
                "          </td>\n" +
                "        </tr>\n" +
                "        <tr>\n" +
@@ -433,16 +434,18 @@ public class PAyuda {
                "          <td><strong>CU5-01</strong> o <strong>REGISTRAR_PRODUCTO</strong></td>\n" +
                "          <td>Registrar Producto (Create)</td>\n" +
                "          <td>\n" +
-               "            <span class=\"code-pattern\">REGISTRAR_PRODUCTO[\"Nombre\",\"Descripcion\",\"PrecioUnitario\"]</span><br>\n" +
-               "            <span class=\"code-example\">REGISTRAR_PRODUCTO[\"Torta de Vainilla\",\"Torta con chispas\",\"80.00\"]</span>\n" +
+               "            <span class=\"code-pattern\">REGISTRAR_PRODUCTO[\"Nombre\",\"Descripcion\",\"PrecioUnitario\",\"CategoriaID*\"]</span><br>\n" +
+               "            <span class=\"code-example\">REGISTRAR_PRODUCTO[\"Torta de Vainilla\",\"Torta con chispas\",\"80.00\",\"1\"]</span><br>\n" +
+               "            <small style=\"color: #8c7b70;\">* CategoriaID es opcional. Usar 0 o null para omitir.</small>\n" +
                "          </td>\n" +
                "        </tr>\n" +
                "        <tr>\n" +
                "          <td><strong>CU5-02</strong> o <strong>EDITAR_PRODUCTO</strong></td>\n" +
                "          <td>Editar Producto (Update)</td>\n" +
                "          <td>\n" +
-               "            <span class=\"code-pattern\">EDITAR_PRODUCTO[\"ID\",\"Nombre\",\"Descripcion\",\"PrecioUnitario\"]</span><br>\n" +
-               "            <span class=\"code-example\">EDITAR_PRODUCTO[\"2\",\"Torta de Vainilla Fina\",\"Torta esponjosa\",\"90.00\"]</span>\n" +
+               "            <span class=\"code-pattern\">EDITAR_PRODUCTO[\"ID\",\"Nombre\",\"Descripcion\",\"PrecioUnitario\",\"CategoriaID*\"]</span><br>\n" +
+               "            <span class=\"code-example\">EDITAR_PRODUCTO[\"2\",\"Torta de Vainilla Fina\",\"Torta esponjosa\",\"90.00\",\"1\"]</span><br>\n" +
+               "            <small style=\"color: #8c7b70;\">* CategoriaID es opcional. Usar 0 o null para omitir.</small>\n" +
                "          </td>\n" +
                "        </tr>\n" +
                "        <tr>\n" +
@@ -468,6 +471,37 @@ public class PAyuda {
                "            <span class=\"code-example\">COSTO_PRODUCCION[\"1\"]</span>\n" +
                "          </td>\n" +
                "        </tr>\n" +
+               "        <tr>\n" +
+               "          <td><strong>REGISTRAR_CATEGORIA</strong></td>\n" +
+               "          <td>Registrar Categoría</td>\n" +
+               "          <td>\n" +
+               "            <span class=\"code-pattern\">REGISTRAR_CATEGORIA[\"Nombre\"]</span><br>\n" +
+               "            <span class=\"code-example\">REGISTRAR_CATEGORIA[\"Chifones Familiares\"]</span>\n" +
+               "          </td>\n" +
+               "        </tr>\n" +
+               "        <tr>\n" +
+               "          <td><strong>LISTAR_CATEGORIAS</strong></td>\n" +
+               "          <td>Listar Categorías</td>\n" +
+               "          <td>\n" +
+               "            <span class=\"code-pattern\">LISTAR_CATEGORIAS</span>\n" +
+               "          </td>\n" +
+               "        </tr>\n" +
+               "        <tr>\n" +
+               "          <td><strong>ASIGNAR_CATEGORIA</strong></td>\n" +
+               "          <td>Asignar Categoría a Producto</td>\n" +
+               "          <td>\n" +
+               "            <span class=\"code-pattern\">ASIGNAR_CATEGORIA[\"ProductoID\",\"CategoriaID\"]</span><br>\n" +
+               "            <span class=\"code-example\">ASIGNAR_CATEGORIA[\"12\",\"1\"]</span>\n" +
+               "          </td>\n" +
+               "        </tr>\n" +
+               "        <tr>\n" +
+               "          <td><strong>QUITAR_CATEGORIA</strong></td>\n" +
+               "          <td>Quitar Categoría de Producto</td>\n" +
+               "          <td>\n" +
+               "            <span class=\"code-pattern\">QUITAR_CATEGORIA[\"ProductoID\"]</span><br>\n" +
+               "            <span class=\"code-example\">QUITAR_CATEGORIA[\"12\"]</span>\n" +
+               "          </td>\n" +
+               "        </tr>\n" +
                "      </table>\n" +
                "\n" +
                "      <!-- MÓDULO 6: PEDIDOS -->\n" +
@@ -483,7 +517,8 @@ public class PAyuda {
                "          <td>Crear Pedido (Create)</td>\n" +
                "          <td>\n" +
                "            <span class=\"code-pattern\">CREAR_PEDIDO[\"ClienteID\",\"ProductoID\",\"Cantidad\",\"TipoPago\",\"CantCuotas\"]</span><br>\n" +
-               "            <span class=\"code-example\">CREAR_PEDIDO[\"1\",\"1\",\"2\",\"cuotas\",\"3\"]</span>\n" +
+               "            <span class=\"code-example\">Ejemplo al Contado: CREAR_PEDIDO[\"1\",\"1\",\"2\",\"contado\",\"0\"]</span><br>\n" +
+               "            <span class=\"code-example\">Ejemplo en Cuotas: CREAR_PEDIDO[\"1\",\"1\",\"2\",\"cuotas\",\"3\"]</span>\n" +
                "          </td>\n" +
                "        </tr>\n" +
                "        <tr>\n" +
