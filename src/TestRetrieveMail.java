@@ -119,7 +119,7 @@ public class TestRetrieveMail {
             System.out.println("==================================================");
 
         } catch (Exception e) {
-            System.err.println("ERROR: Excepción durante la conexión POP3: " + e.getMessage());
+            System.err.println("ERROR: Excepcion durante la conexion POP3: " + e.getMessage());
             e.printStackTrace();
         }
     }

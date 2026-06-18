@@ -31,7 +31,7 @@ public class TestAnalex {
             if (esperadoValido) {
                 String cmd = Analex.getComando(subject);
                 List<String> params = Analex.getParametros(subject);
-                System.out.println("VÁLIDO (Esperado): '" + subject + "' -> Comando: " + cmd + ", Params: " + params);
+                System.out.println("VALIDO (Esperado): '" + subject + "' -> Comando: " + cmd + ", Params: " + params);
             } else {
                 System.err.println("ERROR: Se aceptó como válido pero debió fallar: '" + subject + "'");
             }
@@ -39,7 +39,7 @@ public class TestAnalex {
             if (!esperadoValido) {
                 System.out.println("RECHAZADO (Esperado): '" + subject + "' -> Error: " + e.getMessage());
             } else {
-                System.err.println("ERROR: Falló pero debió ser válido: '" + subject + "' -> Error: " + e.getMessage());
+                System.err.println("ERROR: Fallo pero debió ser valido: '" + subject + "' -> Error: " + e.getMessage());
             }
         }
     }
