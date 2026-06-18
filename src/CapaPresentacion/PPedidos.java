@@ -245,7 +245,6 @@ public class PPedidos {
                "    </div>\n" +
                "    <div class=\"footer\">\n" +
                "      <strong>Grupo 16 - Tecnología Web (UAGRM)</strong><br>\n" +
-               "      Este es un correo automático, por favor no lo respondas directamente.\n" +
                "    </div>\n" +
                "  </div>\n" +
                "</body>\n" +

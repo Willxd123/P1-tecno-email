@@ -76,7 +76,7 @@ public class HiloVerificacionCorreo extends Thread {
         java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss");
         String timeStr = java.time.LocalTime.now().format(dtf);
 
-        System.out.println("\n[" + timeStr + "] ─── INICIANDO VERIFICACIÓN DE CORREOS ───");
+        System.out.println("\n[" + timeStr + "] ----- INICIANDO VERIFICACION DE CORREOS ------");
         System.out.println("[POP3] Conectando a " + host + ":" + port + "...");
 
         try (Socket socket = new Socket(host, port);
@@ -86,13 +86,13 @@ public class HiloVerificacionCorreo extends Thread {
             // Leer respuesta inicial del servidor
             String line = reader.readLine();
             if (line == null || !line.startsWith("+OK")) {
-                System.err.println("[POP3] ConexiÃ³n fallida. Respuesta inicial del servidor: " + line);
+                System.err.println("[POP3] Conexion fallida. Respuesta inicial del servidor: " + line);
                 return;
             }
-            System.out.println("[POP3] ConexiÃ³n establecida.");
+            System.out.println("[POP3] Conexion establecida.");
 
             // USER
-            System.out.println("[POP3] Iniciando sesiÃ³n para el usuario: " + user + "...");
+            System.out.println("[POP3] Iniciando sesion para el usuario: " + user + "...");
             writer.writeBytes(Comando.user(user));
             line = reader.readLine();
             if (!line.startsWith("+OK")) {
@@ -104,10 +104,10 @@ public class HiloVerificacionCorreo extends Thread {
             writer.writeBytes(Comando.pass(pass));
             line = reader.readLine();
             if (!line.startsWith("+OK")) {
-                System.err.println("[POP3] ERROR en contraseÃ±a (PASS): " + line);
+                System.err.println("[POP3] ERROR en contraseña (PASS): " + line);
                 return;
             }
-            System.out.println("[POP3] SesiÃ³n iniciada con Ã©xito.");
+            System.out.println("[POP3] Sesion iniciada con exito.");
 
             // STAT (obtener total de mensajes y tamaÃ±o)
             writer.writeBytes(Comando.stat());
@@ -121,11 +121,11 @@ public class HiloVerificacionCorreo extends Thread {
             int totalMensajes = Integer.parseInt(statParts[1]);
 
             if (totalMensajes == 0) {
-                System.out.println("[POP3] Bandeja vacÃ­a. No hay correos nuevos por procesar.");
+                System.out.println("[POP3] Bandeja vacia. No hay correos nuevos por procesar.");
                 writer.writeBytes(Comando.quit());
                 reader.readLine();
-                System.out.println("[POP3] ConexiÃ³n cerrada.");
-                System.out.println("[" + java.time.LocalTime.now().format(dtf) + "] â”€â”€â”€ FIN DE LA VERIFICACIÃ“N â”€â”€â”€");
+                System.out.println("[POP3] Conexion cerrada.");
+                System.out.println("[" + java.time.LocalTime.now().format(dtf) + "] ----- FIN DE LA VERIFICACION -----");
                 return;
             }
 
@@ -143,7 +143,7 @@ public class HiloVerificacionCorreo extends Thread {
                     continue;
                 }
 
-                // Leer todo el cuerpo del correo hasta la lÃ­nea con un Ãºnico punto "."
+                // Leer todo el cuerpo del correo hasta la linea con un unico punto "."
                 StringBuilder rawMail = new StringBuilder();
                 while ((line = reader.readLine()) != null) {
                     if (line.equals(".")) {
@@ -163,7 +163,7 @@ public class HiloVerificacionCorreo extends Thread {
                 // Ignorar correos de respuesta o reenvÃ­o para evitar bucles infinitos
                 String subjUpper = subject != null ? subject.toUpperCase().trim() : "";
                 if (subjUpper.startsWith("RE:") || subjUpper.startsWith("FWD:") || subjUpper.startsWith("FW:")) {
-                    System.out.println("  [POP3] Correo omitido por ser una respuesta/reenvÃ­o (evita bucles).");
+                    System.out.println("  [POP3] Correo omitido por ser una respuesta/reenvio (evita bucles).");
                     writer.writeBytes(Comando.dele(i));
                     reader.readLine(); // Leer confirmaciÃ³n de DELE
                     continue;
@@ -177,21 +177,21 @@ public class HiloVerificacionCorreo extends Thread {
                     String ComandoName = Analex.getComando(subject);
                     List<String> params = Analex.getParametros(subject);
                     
-                    System.out.println("  Comando detectado: " + ComandoName + " | ParÃ¡metros: " + params);
+                    System.out.println("  Comando detectado: " + ComandoName + " | Parametros: " + params);
                     System.out.println("  Ejecutando controlador...");
                     responseMessage = ejecutarComando(ComandoName, params);
                 } catch (IllegalArgumentException e) {
                     System.out.println("  [ERROR DE SINTAXIS] " + e.getMessage());
                     responseMessage = "Error: " + e.getMessage() + "\n\n" +
                                       "Formato esperado:\n" +
-                                      "Para comandos con parÃ¡metros: COMANDO[\"param1\", \"param2\", ...]\n" +
+                                      "Para comandos con parametros: COMANDO[\"param1\", \"param2\", ...]\n" +
                                       "Ejemplo: INSPER[\"4715292\", \"Juan Carlos\", ...]\n\n" +
                                       "Para comandos sin parÃ¡metros: COMANDO\n" +
                                       "Ejemplo: HELP";
                 }
 
                 // Enviar respuesta por SMTP
-                System.out.println("  Enviando respuesta vÃ­a SMTP a: " + from + "...");
+                System.out.println("  Enviando respuesta via SMTP a: " + from + "...");
                 boolean sent = enviarRespuestaSMTP(from, subject, responseMessage);
 
                 if (sent) {
@@ -199,13 +199,13 @@ public class HiloVerificacionCorreo extends Thread {
                     writer.writeBytes(Comando.dele(i));
                     line = reader.readLine();
                     if (line.startsWith("+OK")) {
-                        System.out.println("    [POP3] Correo #" + i + " marcado para eliminaciÃ³n.");
+                        System.out.println("    [POP3] Correo #" + i + " marcado para eliminacion.");
                     }
                 }
             }
 
             // QUIT para consolidar eliminaciones
-            System.out.println("\n[POP3] Cerrando sesiÃ³n y consolidando eliminaciones...");
+            System.out.println("\n[POP3] Cerrando sesion y consolidando eliminaciones...");
             writer.writeBytes(Comando.quit());
             reader.readLine();
             System.out.println("[POP3] ConexiÃ³n cerrada.");
@@ -213,7 +213,7 @@ public class HiloVerificacionCorreo extends Thread {
         } catch (Exception e) {
             System.err.println("\n[MailThread] ERROR GENERAL en ciclo POP3: " + e.getMessage());
         }
-        System.out.println("[" + java.time.LocalTime.now().format(dtf) + "] â”€â”€â”€ FIN DE LA VERIFICACIÃ“N â”€â”€â”€");
+        System.out.println("[" + java.time.LocalTime.now().format(dtf) + "] ----- FIN DE LA VERIFICACION -----");
     }
 
     /**
@@ -221,7 +221,7 @@ public class HiloVerificacionCorreo extends Thread {
      */
     private String ejecutarComando(String comando, List<String> parametros) {
         if (comando == null || comando.trim().isEmpty()) {
-            return "Error: Asunto vacÃ­o. Por favor envÃ­e un comando vÃ¡lido.";
+            return "Error: Asunto vacio. Por favor envie un comando vÃ¡lido.";
         }
 
         comando = comando.toUpperCase().trim();
@@ -272,7 +272,7 @@ public class HiloVerificacionCorreo extends Thread {
         }
 
         return "Error: Comando '" + comando + "' no reconocido por el sistema.\n" +
-               "EnvÃ­e 'HELP' en el Asunto para ver la lista de comandos disponibles.";
+               "Envie 'HELP' en el Asunto para ver la lista de comandos disponibles.";
     }
 
     /**
@@ -284,7 +284,7 @@ public class HiloVerificacionCorreo extends Thread {
             return;
         }
 
-        System.out.println("[MailThread] Reconciliando " + transacciones.size() + " transacci\u00f3n(es) pendiente(s) de QR...");
+        System.out.println("[MailThread] Reconciliando " + transacciones.size() + " transaccion(es) pendiente(s) de QR...");
 
         // Lista de transacciones a remover del archivo JSON tras confirmar el pago
         java.util.List<String> transaccionesCompletadas = new java.util.ArrayList<>();
@@ -556,7 +556,7 @@ public class HiloVerificacionCorreo extends Thread {
         sb.append("<div class=\"container\">");
         sb.append("  <div class=\"header\">");
         sb.append("    <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuzú Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">");
-        sb.append("    <h1>🎉 PAGO CONFIRMADO 🎉</h1>");
+        sb.append("    <h1>PAGO CONFIRMADO</h1>");
         sb.append("  </div>");
         sb.append("  <div class=\"content\">");
         sb.append("    <div class=\"card\">");
@@ -637,7 +637,7 @@ public class HiloVerificacionCorreo extends Thread {
         sb.append("<div class=\"container\">");
         sb.append("  <div class=\"header\">");
         sb.append("    <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuzú Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">");
-        sb.append("    <h1>🎉 CONFIRMACIÓN DE PAGO DE CUOTA 🎉</h1>");
+        sb.append("    <h1>CONFIRMACIÓN DE PAGO DE CUOTA</h1>");
         sb.append("  </div>");
         sb.append("  <div class=\"content\">");
         sb.append("    <div class=\"card\">");
@@ -761,7 +761,7 @@ public class HiloVerificacionCorreo extends Thread {
         sb.append("<div class=\"container\">");
         sb.append("  <div class=\"header\">");
         sb.append("    <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuzú Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">");
-        sb.append("    <h1>🎉 ¡PEDIDO LIQUIDADO CON ÉXITO! 🎉</h1>");
+        sb.append("    <h1>¡PEDIDO LIQUIDADO CON ÉXITO!</h1>");
         sb.append("  </div>");
         sb.append("  <div class=\"content\">");
         sb.append("    <div class=\"card\">");
@@ -821,7 +821,7 @@ public class HiloVerificacionCorreo extends Thread {
             sb.append("      </tbody>");
             sb.append("    </table>");
             sb.append("    <br><div style=\"text-align: center; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 15px; margin-top: 10px;\">");
-            sb.append("      <p style=\"font-size: 14px; font-weight: bold; color: #15803d; margin: 0;\">🎉 ¡Tu pedido ha sido liquidado en su totalidad y ya está en preparación! ¡Muchas gracias por tu compra!</p>");
+            sb.append("      <p style=\"font-size: 14px; font-weight: bold; color: #15803d; margin: 0;\">¡Tu pedido ha sido liquidado en su totalidad y ya está en preparación! ¡Muchas gracias por tu compra!</p>");
             sb.append("    </div>");
         }
 

@@ -37,7 +37,7 @@ public class PCartillas {
         String clienteHeader = bloques[0].trim();
         if (clienteHeader.startsWith("CLIENTE:")) {
             html.append("<div class=\"client-banner\">")
-                .append("<h3>👤 ").append(clienteHeader).append("</h3>")
+                .append("<h3>").append(clienteHeader).append("</h3>")
                 .append("</div>");
         }
 
@@ -215,7 +215,7 @@ public class PCartillas {
             }
 
             // Mostrar tablas de Pedidos y Envases de esta cartilla
-            html.append("    <h4 class=\"seccion-card-title\">🛒 Pedidos en esta Cartilla</h4>")
+            html.append("    <h4 class=\"seccion-card-title\">Pedidos en esta Cartilla</h4>")
                 .append("    <table>")
                 .append("      <tr><th>Pedido ID</th><th>Fecha</th><th>Total</th><th>Estado Pago</th><th>Detalles</th></tr>")
                 .append(pedidosHtml.length() > 0 ? pedidosHtml.toString() : "<tr><td colspan=\"5\" style=\"text-align:center;color:#9ca3af;\">Ningún pedido en esta cartilla.</td></tr>")
