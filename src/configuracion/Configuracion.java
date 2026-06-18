@@ -191,4 +191,24 @@ public class Configuracion {
     public static String getPopPassword() {
         return get("POP_PASSWORD", "grup016grup016");
     }
+
+    // ==========================================
+    // GETTERS CENTRALIZADOS (PAGOFACIL INTEGRATION)
+    // ==========================================
+
+    public static String getPagoFacilCommerceId() {
+        return get("PAGOFACIL_COMMERCE_ID");
+    }
+
+    public static String getPagoFacilTokenService() {
+        return get("PAGOFACIL_TOKEN_SERVICE");
+    }
+
+    public static String getPagoFacilTokenSecret() {
+        return get("PAGOFACIL_TOKEN_SECRET");
+    }
+
+    public static boolean getPagoFacilTestMode() {
+        return Boolean.parseBoolean(get("PAGOFACIL_TEST_MODE", "true"));
+    }
 }

@@ -13,6 +13,7 @@ public class DProductos {
     private String descripcion;
     private double precio_unitario;
     private boolean disponible;
+    private Integer categoria_producto_id;
 
     public DProductos() {}
 
@@ -22,6 +23,16 @@ public class DProductos {
         this.descripcion = descripcion;
         this.precio_unitario = precio_unitario;
         this.disponible = disponible;
+        this.categoria_producto_id = null;
+    }
+
+    public DProductos(int id, String nombre, String descripcion, double precio_unitario, boolean disponible, Integer categoria_producto_id) {
+        this.id = id;
+        this.nombre = nombre;
+        this.descripcion = descripcion;
+        this.precio_unitario = precio_unitario;
+        this.disponible = disponible;
+        this.categoria_producto_id = categoria_producto_id;
     }
 
     // Getters y Setters
@@ -35,19 +46,26 @@ public class DProductos {
     public void setPrecio_unitario(double precio_unitario) { this.precio_unitario = precio_unitario; }
     public boolean isDisponible() { return disponible; }
     public void setDisponible(boolean disponible) { this.disponible = disponible; }
+    public Integer getCategoria_producto_id() { return categoria_producto_id; }
+    public void setCategoria_producto_id(Integer categoria_producto_id) { this.categoria_producto_id = categoria_producto_id; }
 
     // ==========================================
     // OPERACIONES CRUD CON LA BASE DE DATOS
     // ==========================================
 
     public boolean insertar() throws SQLException {
-        String sql = "INSERT INTO productos (nombre, descripcion, precio_unitario, disponible) VALUES (?, ?, ?, ?) RETURNING id";
+        String sql = "INSERT INTO productos (nombre, descripcion, precio_unitario, disponible, categoria_producto_id) VALUES (?, ?, ?, ?, ?) RETURNING id";
         try (Connection conn = Conexion.getConexion();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, this.nombre);
             ps.setString(2, this.descripcion);
             ps.setDouble(3, this.precio_unitario);
             ps.setBoolean(4, this.disponible);
+            if (this.categoria_producto_id != null) {
+                ps.setInt(5, this.categoria_producto_id);
+            } else {
+                ps.setNull(5, java.sql.Types.INTEGER);
+            }
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     this.id = rs.getInt("id");
@@ -59,14 +77,19 @@ public class DProductos {
     }
 
     public boolean modificar() throws SQLException {
-        String sql = "UPDATE productos SET nombre = ?, descripcion = ?, precio_unitario = ?, disponible = ? WHERE id = ?";
+        String sql = "UPDATE productos SET nombre = ?, descripcion = ?, precio_unitario = ?, disponible = ?, categoria_producto_id = ? WHERE id = ?";
         try (Connection conn = Conexion.getConexion();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, this.nombre);
             ps.setString(2, this.descripcion);
             ps.setDouble(3, this.precio_unitario);
             ps.setBoolean(4, this.disponible);
-            ps.setInt(5, this.id);
+            if (this.categoria_producto_id != null) {
+                ps.setInt(5, this.categoria_producto_id);
+            } else {
+                ps.setNull(5, java.sql.Types.INTEGER);
+            }
+            ps.setInt(6, this.id);
             return ps.executeUpdate() > 0;
         }
     }
@@ -85,14 +108,17 @@ public class DProductos {
         String sql = "SELECT * FROM productos ORDER BY id ASC";
         try (Connection conn = Conexion.getConexion();
              PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
+                int catId = rs.getInt("categoria_producto_id");
+                Integer categoriaId = rs.wasNull() ? null : catId;
                 lista.add(new DProductos(
                     rs.getInt("id"),
                     rs.getString("nombre"),
                     rs.getString("descripcion"),
                     rs.getDouble("precio_unitario"),
-                    rs.getBoolean("disponible")
+                    rs.getBoolean("disponible"),
+                    categoriaId
                 ));
             }
         }
@@ -106,12 +132,15 @@ public class DProductos {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
+                    int catId = rs.getInt("categoria_producto_id");
+                    Integer categoriaId = rs.wasNull() ? null : catId;
                     return new DProductos(
                         rs.getInt("id"),
                         rs.getString("nombre"),
                         rs.getString("descripcion"),
                         rs.getDouble("precio_unitario"),
-                        rs.getBoolean("disponible")
+                        rs.getBoolean("disponible"),
+                        categoriaId
                     );
                 }
             }

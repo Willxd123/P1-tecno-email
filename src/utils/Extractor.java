@@ -19,8 +19,8 @@
         private static final String EDU = "uagrm.edu.bo";
         private static final String THUNDERBIRD = "Thunderbird";
 
-        public static Email getEmail(String plain_text){
-            return new Email(getFrom(plain_text),getDecodedSubject(plain_text));
+        public static Correo getCorreo(String plain_text){
+            return new Correo(getFrom(plain_text),getDecodedSubject(plain_text));
         }
 
         private static String getFrom(String plain_text){

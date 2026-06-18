@@ -9,23 +9,23 @@ package utils;
  *
  * @author ronal
  */
-public class Email {
+public class Correo {
     public static final String SUBJECT = "SOE -  Respuesta";
     private String from;
     private String to;
     private String subject;
     private String message;
     
-    public Email(){
+    public Correo(){
     }
 
-    public Email(String to, String subject, String message) {
+    public Correo(String to, String subject, String message) {
         this.to = to;
         this.subject = subject;
         this.message = message;
     }
 
-    public Email(String from, String subject) {
+    public Correo(String from, String subject) {
         this.from = from;
         this.subject = subject;
     }

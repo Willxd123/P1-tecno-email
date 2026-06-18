@@ -45,19 +45,6 @@ public class SendEmailThread implements Runnable {
         return dotenv.get(name);
     }
 
-
-    //Descomentar para tecnoweb
-    /*
-    private final static String PORT_SMTP = "25";
-    private final static String PROTOCOL = "smtp";
-    private final static String HOST = "mail.tecnoweb.org.bo";
-    private final static String USER = "grupo09sc";
-    private final static String PASSWORD = "grup009grup009";
-    private final static String MAIL = "grupo09sc@tecnoweb.org.bo";
-    private final static String MAIL_PASSWORD = "grupo09grupo09";
-
-     */
-
     private final Email email;
 
     public SendEmailThread(Email email) {
@@ -66,17 +53,6 @@ public class SendEmailThread implements Runnable {
 
     @Override
     public void run() {
-
-        //Descomentar para gmail
-/*
-        Properties properties = new Properties();
-        properties.setProperty("mail.smtp.host", HOST);
-        properties.setProperty("mail.smtp.port", PORT_SMTP);
-        //properties.setProperty("mail.smtp.starttls.enable", "false");//cuando user tecnoweb
-        properties.setProperty("mail.smtp.ssl.enable", "true");//cuando usen Gmail
-        properties.setProperty("mail.smtp.auth", "true");
-*/
-        //Descomentar para tecnoweb
 
         Properties properties = new Properties();
         properties.put("mail.smtp.host", HOST);
@@ -108,16 +84,6 @@ public class SendEmailThread implements Runnable {
             htmlPart.setContent(email.getMessage(), "text/html; charset=utf-8");
 
             multipart.addBodyPart(htmlPart);
-
-        /*    // Si se ha proporcionado una representación Base64 de la imagen, adjuntarla
-            if (email.getImageFilePath() != null) {
-                byte[] imageBytes = Base64.getDecoder().decode(email.getImageFilePath());
-                DataSource imageDataSource = new ByteArrayDataSource(imageBytes, "image/png");
-                MimeBodyPart imagePart = new MimeBodyPart();
-                imagePart.setDataHandler(new DataHandler(imageDataSource));
-                imagePart.setFileName("chart.png");
-                multipart.addBodyPart(imagePart);
-            } */
 
             message.setContent(multipart);
             message.saveChanges();

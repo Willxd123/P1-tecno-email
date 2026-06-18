@@ -1,0 +1,310 @@
+﻿diff --git a/src/utils/HiloVerificacionCorreo.java b/src/utils/HiloVerificacionCorreo.java
+index 4e2a08e..27b6e7b 100644
+--- a/src/utils/HiloVerificacionCorreo.java
++++ b/src/utils/HiloVerificacionCorreo.java
+@@ -60,6 +60,13 @@ public class HiloVerificacionCorreo extends Thread {
+      * Se conecta por POP3, descarga los correos, los procesa y los responde.
+      */
+     private void procesarCorreos() {
++        // Reconciliar primero los pagos por QR pendientes
++        try {
++            reconciliarPagosQR();
++        } catch (Exception e) {
++            System.err.println("[MailThread] Error al reconciliar pagos QR: " + e.getMessage());
++        }
++
+         String host = Configuracion.getPopHost();
+         int port = Configuracion.getPopPort();
+         String user = Configuracion.getPopUser();
+@@ -68,7 +75,7 @@ public class HiloVerificacionCorreo extends Thread {
+         java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss");
+         String timeStr = java.time.LocalTime.now().format(dtf);
+ 
+-        System.out.println("\n[" + timeStr + "] ├óÔÇØÔé¼├óÔÇØÔé¼├óÔÇØÔé¼ INICIANDO VERIFICACI├âÔÇ£N DE CORREOS ├óÔÇØÔé¼├óÔÇØÔé¼├óÔÇØÔé¼");
++        System.out.println("\n[" + timeStr + "] ÔöÇÔöÇÔöÇ INICIANDO VERIFICACI├ôN DE CORREOS ÔöÇÔöÇÔöÇ");
+         System.out.println("[POP3] Conectando a " + host + ":" + port + "...");
+ 
+         try (Socket socket = new Socket(host, port);
+@@ -328,12 +335,19 @@ public class HiloVerificacionCorreo extends Thread {
+             if (contenido.trim().startsWith("<!DOCTYPE html>") || contenido.trim().startsWith("<html>")) {
+                 writer.writeBytes("Content-Type: text/html; charset=UTF-8" + END);
+                 writer.writeBytes(END); // Separador cabecera-cuerpo
+-                writer.writeBytes(contenido.replace("\r\n", "\n").replace("\n", "\r\n"));
++                
++                // CRITICAL: Write raw UTF-8 bytes to socket to prevent char/emoji corruption
++                byte[] htmlBytes = contenido.replace("\r\n", "\n").replace("\n", "\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
++                writer.write(htmlBytes);
+             } else {
+                 writer.writeBytes("Content-Type: text/plain; charset=UTF-8" + END);
+                 writer.writeBytes(END); // Separador cabecera-cuerpo
+-                writer.writeBytes("--- RESPUESTA AUTOM├â┬üTICA DEL SISTEMA (GRUPO 16) ---" + END + END);
+-                writer.writeBytes(contenido.replace("\r\n", "\n").replace("\n", "\r\n"));
++                writer.writeBytes("--- RESPUESTA AUTOM├â TICA DEL SISTEMA (GRUPO 16) ---" + END + END);
++                
++                // CRITICAL: Write raw UTF-8 bytes to socket
++                byte[] textBytes = contenido.replace("\r\n", "\n").replace("\n", "\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
++                writer.write(textBytes);
++                
+                 writer.writeBytes(END + END + "-------------------------------------------------" + END);
+                 writer.writeBytes("TecnoCorreoZUZU v1.0 - Reposter├â┬¡a Automatizada" + END);
+             }
+@@ -359,6 +373,258 @@ public class HiloVerificacionCorreo extends Thread {
+         }
+     }
+ 
++    /**
++     * Reconcilia las transacciones QR pendientes registradas en qr_transactions.json
++     */
++    private void reconciliarPagosQR() {
++        java.util.Map<String, String> transacciones = PagoFacilService.cargarTransacciones();
++        if (transacciones.isEmpty()) {
++            return;
++        }
++
++        System.out.println("[MailThread] Reconciliando " + transacciones.size() + " transacci├│n(es) pendiente(s) de QR...");
++
++        // Lista de transacciones a remover del archivo JSON tras confirmar el pago
++        java.util.List<String> transaccionesCompletadas = new java.util.ArrayList<>();
++
++        for (java.util.Map.Entry<String, String> entry : transacciones.entrySet()) {
++            String txId = entry.getKey();
++            String info = entry.getValue();
++            String[] parts = info.split(";");
++            if (parts.length < 3) {
++                continue;
++            }
++            String email = parts[0];
++            double monto = Double.parseDouble(parts[1]);
++            String tipo = parts[2];
++
++            System.out.println("[MailThread] Consultando estado de " + txId + " en PagoFacil...");
++            boolean pagado = PagoFacilService.consultarEstado(txId);
++
++            if (pagado) {
++                System.out.println("[MailThread] ┬íTransacci├│n " + txId + " PAGADA confirmada!");
++
++                if (txId.startsWith("PED-")) {
++                    try {
++                        int pedidoId = Integer.parseInt(txId.substring(4));
++                        boolean dbOk = CapaNegocio.NPedidos.confirmarPagoPedido(pedidoId);
++                        
++                        if (dbOk) {
++                            String htmlContent = buildHtmlPedidoConfirmado(pedidoId, monto, txId);
++                            enviarRespuestaSMTP(email, "CONFIRMACION DE PAGO PEDIDO #" + pedidoId, htmlContent);
++                        } else {
++                            System.err.println("[MailThread] Error al actualizar pedido " + pedidoId + " en la base de datos.");
++                        }
++                    } catch (Exception e) {
++                        System.err.println("[MailThread] Error al procesar pago de pedido " + txId + ": " + e.getMessage());
++                    }
++                } else if (txId.startsWith("CUO-")) {
++                    try {
++                        int cuotaId = Integer.parseInt(txId.substring(4));
++                        String resultMsg = CapaNegocio.NPedidos.confirmarPagoCuota(cuotaId);
++                        
++                        if (resultMsg.startsWith("├ëxito") || resultMsg.startsWith("Advertencia")) {
++                            String htmlContent = buildHtmlCuotaConfirmada(cuotaId, monto, txId, resultMsg);
++                            enviarRespuestaSMTP(email, "CONFIRMACION DE PAGO CUOTA #" + cuotaId, htmlContent);
++                        } else {
++                            System.err.println("[MailThread] Error al confirmar cuota " + cuotaId + " en BD: " + resultMsg);
++                        }
++                    } catch (Exception e) {
++                        System.err.println("[MailThread] Error al procesar pago de cuota " + txId + ": " + e.getMessage());
++                    }
++                }
++
++                transaccionesCompletadas.add(txId);
++            } else {
++                System.out.println("[MailThread] Transacci├│n " + txId + " sigue pendiente.");
++            }
++        }
++
++        // Remover las que ya fueron pagadas
++        for (String txId : transaccionesCompletadas) {
++            PagoFacilService.removerTransaccion(txId);
++        }
++    }
++
++    private String buildHtmlPedidoConfirmado(int pedidoId, double monto, String txId) {
++        StringBuilder sb = new StringBuilder();
++        sb.append("<!DOCTYPE html><html><head><meta charset=\"utf-8\">");
++        sb.append("<style>");
++        sb.append("  body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: #fdfaf7; color: #4a3e3d; margin: 0; padding: 0; }");
++        sb.append("  .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(97, 56, 28, 0.08); border: 1px solid #f0e6df; }");
++        sb.append("  .header { background: linear-gradient(135deg, #10b981, #047857); padding: 35px 20px; text-align: center; color: #ffffff; }");
++        sb.append("  .header h1 { margin: 0; font-size: 24px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.15); }");
++        sb.append("  .content { padding: 35px 30px; }");
++        sb.append("  .card { background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 25px; }");
++        sb.append("  .success-icon { font-size: 48px; color: #10b981; margin-bottom: 15px; }");
++        sb.append("  .amount { font-size: 28px; font-weight: 800; color: #047857; margin: 10px 0; }");
++        sb.append("  .details-table { width: 100%; border-collapse: collapse; margin-top: 15px; }");
++        sb.append("  .details-table td { padding: 10px; border-bottom: 1px solid #f0e6df; font-size: 14px; }");
++        sb.append("  .details-table td.label { font-weight: 600; color: #6b7280; width: 40%; }");
++        sb.append("  .details-table td.value { font-weight: 700; color: #4a3e3d; text-align: right; }");
++        sb.append("  .footer { background-color: #fcf8f5; padding: 20px; text-align: center; font-size: 12px; color: #8c7b70; border-top: 1px solid #f0e6df; }");
++        sb.append("</style></head><body>");
++        sb.append("<div class=\"container\">");
++        sb.append("  <div class=\"header\">");
++        sb.append("    <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuz├║ Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">");
++        sb.append("    <h1>­ƒÄë PAGO CONFIRMADO ­ƒÄë</h1>");
++        sb.append("  </div>");
++        sb.append("  <div class=\"content\">");
++        sb.append("    <div class=\"card\">");
++        sb.append("      <div class=\"success-icon\">Ô£ô</div>");
++        sb.append("      <h2 style=\"margin: 0; color: #166534; font-size: 20px;\">┬íPago Exitoso Recibido!</h2>");
++        sb.append("      <p style=\"color: #15803d; font-size: 14px; margin: 5px 0 15px 0;\">Hemos recibido correctamente tu pago de:</p>");
++        sb.append("      <div class=\"amount\">").append(monto).append(" Bs.</div>");
++        sb.append("      <span style=\"background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; padding: 6px 16px; border-radius: 30px; font-size: 12px; font-weight: 700; display: inline-block;\">PEDIDO TOTAL PAGADO</span>");
++        sb.append("    </div>");
++        sb.append("    <h3 style=\"margin-top: 0; border-bottom: 2px solid #f7efe9; padding-bottom: 8px; color: #047857;\">Detalle de Transacci├│n</h3>");
++        sb.append("    <table class=\"details-table\">");
++        sb.append("      <tr><td class=\"label\">Pedido ID:</td><td class=\"value\">#").append(pedidoId).append("</td></tr>");
++        sb.append("      <tr><td class=\"label\">PagoFacil Ref:</td><td class=\"value\">").append(txId).append("</td></tr>");
++        sb.append("      <tr><td class=\"label\">Fecha de Pago:</td><td class=\"value\">").append(new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new java.util.Date())).append("</td></tr>");
++        sb.append("      <tr><td class=\"label\">Estado Pedido:</td><td class=\"value\"><span style=\"color: #10b981; font-weight: bold;\">PAGADO</span></td></tr>");
++        sb.append("    </table>");
++        sb.append("    <br><p style=\"text-align: center; font-size: 14px; color: #6b7280;\">Ya estamos preparando tu orden. ┬íMuchas gracias por tu preferencia!</p>");
++        sb.append("  </div>");
++        sb.append("  <div class=\"footer\">");
++        sb.append("    <strong>Grupo 16 - Tecnolog├¡a Web (UAGRM)</strong><br>");
++        sb.append("    Este es un correo de notificaci├│n autom├ítica de pagos.");
++        sb.append("  </div>");
++        sb.append("</div></body></html>");
++        return sb.toString();
++    }
+ 
+-}
++    private String buildHtmlCuotaConfirmada(int cuotaId, double monto, String txId, String resultMsg) {
++        int pagoId = -1;
++        int pedidoId = -1;
++        double totalPedido = 0.0;
++        try (java.sql.Connection conn = CapaDatos.Conexion.getConexion()) {
++            String sqlCuota = "SELECT pago_id FROM cuotas WHERE id = ?";
++            try (java.sql.PreparedStatement ps = conn.prepareStatement(sqlCuota)) {
++                ps.setInt(1, cuotaId);
++                try (java.sql.ResultSet rs = ps.executeQuery()) {
++                    if (rs.next()) {
++                        pagoId = rs.getInt("pago_id");
++                    }
++                }
++            }
++
++            if (pagoId != -1) {
++                String sqlPago = "SELECT pedido_id FROM pagos WHERE id = ?";
++                try (java.sql.PreparedStatement ps = conn.prepareStatement(sqlPago)) {
++                    ps.setInt(1, pagoId);
++                    try (java.sql.ResultSet rs = ps.executeQuery()) {
++                        if (rs.next()) {
++                            pedidoId = rs.getInt("pedido_id");
++                        }
++                    }
++                }
++            }
+ 
++            if (pedidoId != -1) {
++                CapaDatos.DPedidos ped = CapaDatos.DPedidos.obtenerPorId(pedidoId);
++                if (ped != null) {
++                    totalPedido = ped.getTotal();
++                }
++            }
++        } catch (java.sql.SQLException e) {
++            System.err.println("[MailThread] Error al consultar plan de cuotas: " + e.getMessage());
++        }
++
++        StringBuilder sb = new StringBuilder();
++        sb.append("<!DOCTYPE html><html><head><meta charset=\"utf-8\">");
++        sb.append("<style>");
++        sb.append("  body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: #fdfaf7; color: #4a3e3d; margin: 0; padding: 0; }");
++        sb.append("  .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 40px rgba(97, 56, 28, 0.08); border: 1px solid #f0e6df; }");
++        sb.append("  .header { background: linear-gradient(135deg, #10b981, #047857); padding: 35px 20px; text-align: center; color: #ffffff; }");
++        sb.append("  .header h1 { margin: 0; font-size: 24px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.15); }");
++        sb.append("  .content { padding: 35px 30px; }");
++        sb.append("  .card { background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 25px; }");
++        sb.append("  .success-icon { font-size: 48px; color: #10b981; margin-bottom: 15px; }");
++        sb.append("  .amount { font-size: 28px; font-weight: 800; color: #047857; margin: 10px 0; }");
++        sb.append("  .details-table, .cuotas-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 15px; border-radius: 12px; overflow: hidden; border: 1px solid #eedfd4; }");
++        sb.append("  .details-table td { padding: 12px 16px; border-bottom: 1px solid #f7efe9; font-size: 14px; }");
++        sb.append("  .details-table td.label { font-weight: 600; color: #6b7280; width: 40%; }");
++        sb.append("  .details-table td.value { font-weight: 700; color: #4a3e3d; text-align: right; }");
++        sb.append("  .cuotas-table th { background-color: #047857; color: #ffffff; padding: 12px 14px; font-size: 13px; font-weight: 600; text-align: left; }");
++        sb.append("  .cuotas-table td { padding: 12px 14px; border-bottom: 1px solid #f7efe9; font-size: 13px; color: #4a3e3d; }");
++        sb.append("  .cuotas-table tr:last-child td { border-bottom: none; }");
++        sb.append("  .cuotas-table tr:nth-child(even) { background-color: #fdfbf9; }");
++        sb.append("  .badge { display: inline-block; padding: 4px 10px; border-radius: 30px; font-size: 11px; font-weight: 600; text-align: center; }");
++        sb.append("  .badge-si { background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }");
++        sb.append("  .badge-pend { background-color: #fef3c7; color: #d97706; border: 1px solid #fde68a; }");
++        sb.append("  .footer { background-color: #fcf8f5; padding: 20px; text-align: center; font-size: 12px; color: #8c7b70; border-top: 1px solid #f0e6df; }");
++        sb.append("</style></head><body>");
++        sb.append("<div class=\"container\">");
++        sb.append("  <div class=\"header\">");
++        sb.append("    <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuz├║ Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">");
++        sb.append("    <h1>­ƒÄë PAGO DE CUOTA CONFIRMADO ­ƒÄë</h1>");
++        sb.append("  </div>");
++        sb.append("  <div class=\"content\">");
++        sb.append("    <div class=\"card\">");
++        sb.append("      <div class=\"success-icon\">Ô£ô</div>");
++        sb.append("      <h2 style=\"margin: 0; color: #166534; font-size: 18px;\">┬íCuota Pagada con ├ëxito!</h2>");
++        sb.append("      <p style=\"color: #15803d; font-size: 13px; margin: 5px 0 15px 0;\">Hemos procesado tu pago de la Cuota #").append(cuotaId).append(" por:</p>");
++        sb.append("      <div class=\"amount\">").append(monto).append(" Bs.</div>");
++        sb.append("      <p style=\"font-size: 13px; font-weight: bold; color: #166534; margin: 10px 0 0 0;\">").append(resultMsg).append("</p>");
++        sb.append("    </div>");
++        
++        sb.append("    <h3 style=\"margin-top: 25px; border-bottom: 2px solid #f7efe9; padding-bottom: 8px; color: #047857;\">Detalle de Transacci├│n</h3>");
++        sb.append("    <table class=\"details-table\">");
++        sb.append("      <tr><td class=\"label\">Cuota ID:</td><td class=\"value\">#").append(cuotaId).append("</td></tr>");
++        sb.append("      <tr><td class=\"label\">Pedido ID:</td><td class=\"value\">#").append(pedidoId).append("</td></tr>");
++        sb.append("      <tr><td class=\"label\">Monto del Pedido:</td><td class=\"value\">").append(totalPedido).append(" Bs.</td></tr>");
++        sb.append("      <tr><td class=\"label\">Referencia PagoFacil:</td><td class=\"value\">").append(txId).append("</td></tr>");
++        sb.append("      <tr><td class=\"label\">Fecha de Pago:</td><td class=\"value\">").append(new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new java.util.Date())).append("</td></tr>");
++        sb.append("    </table>");
++
++        if (pagoId != -1) {
++            sb.append("    <h3 style=\"margin-top: 30px; border-bottom: 2px solid #f7efe9; padding-bottom: 8px; color: #047857;\">Plan de Cuotas Actualizado</h3>");
++            sb.append("    <table class=\"cuotas-table\">");
++            sb.append("      <thead><tr><th>Cuota ID</th><th>Nro.</th><th>Monto</th><th>Vencimiento</th><th>Estado</th></tr></thead>");
++            sb.append("      <tbody>");
++            try (java.sql.Connection conn = CapaDatos.Conexion.getConexion()) {
++                String sqlList = "SELECT id, numero_cuota, monto_cuota, fecha_vencimiento, pagado FROM cuotas WHERE pago_id = ? ORDER BY numero_cuota ASC";
++                try (java.sql.PreparedStatement ps = conn.prepareStatement(sqlList)) {
++                    ps.setInt(1, pagoId);
++                    try (java.sql.ResultSet rs = ps.executeQuery()) {
++                        while (rs.next()) {
++                            int cid = rs.getInt("id");
++                            int num = rs.getInt("numero_cuota");
++                            double val = rs.getDouble("monto_cuota");
++                            java.sql.Date venc = rs.getDate("fecha_vencimiento");
++                            boolean pag = rs.getBoolean("pagado");
++                            
++                            sb.append("      <tr>");
++                            sb.append("        <td>#").append(cid).append("</td>");
++                            sb.append("        <td>").append(num).append("</td>");
++                            sb.append("        <td>").append(val).append(" Bs.</td>");
++                            sb.append("        <td>").append(venc.toString()).append("</td>");
++                            sb.append("        <td>");
++                            if (pag) {
++                                sb.append("          <span class=\"badge badge-si\">PAGADO</span>");
++                            } else {
++                                sb.append("          <span class=\"badge badge-pend\">PENDIENTE</span>");
++                            }
++                            sb.append("        </td>");
++                            sb.append("      </tr>");
++                        }
++                    }
++                }
++            } catch (java.sql.SQLException e) {
++                System.err.println("[MailThread] Error al listar cuotas: " + e.getMessage());
++            }
++            sb.append("      </tbody>");
++            sb.append("    </table>");
++            sb.append("    <br><p style=\"font-size: 13px; color: #6b7280; text-align: center;\">Recuerda que para pagar tus siguientes cuotas pendientes debes usar el comando <strong>PAGAR_CUOTA[\"CuotaID\"]</strong>.</p>");
++        }
++
++        sb.append("  </div>");
++        sb.append("  <div class=\"footer\">");
++        sb.append("    <strong>Grupo 16 - Tecnolog├¡a Web (UAGRM)</strong><br>");
++        sb.append("    Este es un correo de notificaci├│n autom├ítica de pagos.");
++        sb.append("  </div>");
++        sb.append("</div></body></html>");
++        return sb.toString();
++    }
++}

@@ -1,10 +1,10 @@
-package CapaPresentacion.controllers;
+package CapaPresentacion.controladores;
 
 import CapaNegocio.NRoles;
 import CapaPresentacion.PRoles;
 import java.util.List;
 
-public class RolController {
+public class RolControlador {
     
     /**
      * Retorna verdadero si el comando pertenece al recurso de Roles.
@@ -12,11 +12,11 @@ public class RolController {
     public static boolean canHandle(String comando) {
         if (comando == null) return false;
         comando = comando.toUpperCase().trim();
-        return comando.equals("REGROL") || comando.equals("REGISTRAR_ROL") ||
-               comando.equals("EDTROL") || comando.equals("EDITAR_ROL") ||
-               comando.equals("DELROL") || comando.equals("ELIMINAR_ROL") ||
-               comando.equals("LISROL") || comando.equals("LISTAR_ROLES") ||
-               comando.equals("VERROL") || comando.equals("VER_ROL");
+        return comando.equals("CU1-08") || comando.equals("CU9-01") || comando.equals("REGROL") || comando.equals("REGISTRAR_ROL") ||
+               comando.equals("CU1-09") || comando.equals("CU9-02") || comando.equals("EDTROL") || comando.equals("EDITAR_ROL") ||
+               comando.equals("CU1-10") || comando.equals("CU9-03") || comando.equals("DELROL") || comando.equals("ELIMINAR_ROL") ||
+               comando.equals("CU1-11") || comando.equals("CU9-04") || comando.equals("LISROL") || comando.equals("LISTAR_ROLES") ||
+               comando.equals("CU1-12") || comando.equals("CU9-05") || comando.equals("VERROL") || comando.equals("VER_ROL");
     }
 
     /**
@@ -27,26 +27,36 @@ public class RolController {
         String rawResult;
         
         switch (comando.toUpperCase().trim()) {
+            case "CU1-08":
+            case "CU9-01":
             case "REGROL":
             case "REGISTRAR_ROL":
                 rawResult = NRoles.registrarRol(parametros);
                 break;
 
+            case "CU1-09":
+            case "CU9-02":
             case "EDTROL":
             case "EDITAR_ROL":
                 rawResult = NRoles.editarRol(parametros);
                 break;
 
+            case "CU1-10":
+            case "CU9-03":
             case "DELROL":
             case "ELIMINAR_ROL":
                 rawResult = NRoles.eliminarRol(parametros);
                 break;
 
+            case "CU1-11":
+            case "CU9-04":
             case "LISROL":
             case "LISTAR_ROLES":
                 rawResult = NRoles.listarRoles(parametros);
                 break;
 
+            case "CU1-12":
+            case "CU9-05":
             case "VERROL":
             case "VER_ROL":
                 rawResult = NRoles.verRol(parametros);
@@ -59,3 +69,4 @@ public class RolController {
         return PRoles.generarHtml(comando, rawResult);
     }
 }
+

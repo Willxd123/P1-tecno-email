@@ -4,23 +4,18 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DRecetas {
+public class DCategoriaProducto {
     private int id;
     private String nombre;
-    private String descripcion;
-    private int producto_id;
 
-    public DRecetas() {}
+    public DCategoriaProducto() {}
 
-    public DRecetas(int id, String nombre, String descripcion, int producto_id) {
+    public DCategoriaProducto(int id, String nombre) {
         this.id = id;
         this.nombre = nombre;
-        this.descripcion = descripcion;
-        this.producto_id = producto_id;
     }
 
     // Getters y Setters
@@ -28,22 +23,16 @@ public class DRecetas {
     public void setId(int id) { this.id = id; }
     public String getNombre() { return nombre; }
     public void setNombre(String nombre) { this.nombre = nombre; }
-    public String getDescripcion() { return descripcion; }
-    public void setDescripcion(String descripcion) { this.descripcion = descripcion; }
-    public int getProducto_id() { return producto_id; }
-    public void setProducto_id(int producto_id) { this.producto_id = producto_id; }
 
     // ==========================================
     // OPERACIONES CRUD CON LA BASE DE DATOS
     // ==========================================
 
     public boolean insertar() throws SQLException {
-        String sql = "INSERT INTO recetas (nombre, descripcion, producto_id) VALUES (?, ?, ?) RETURNING id";
+        String sql = "INSERT INTO categoria_producto (nombre) VALUES (?) RETURNING id";
         try (Connection conn = Conexion.getConexion();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, this.nombre);
-            ps.setString(2, this.descripcion);
-            ps.setInt(3, this.producto_id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     this.id = rs.getInt("id");
@@ -55,19 +44,17 @@ public class DRecetas {
     }
 
     public boolean modificar() throws SQLException {
-        String sql = "UPDATE recetas SET nombre = ?, descripcion = ?, producto_id = ? WHERE id = ?";
+        String sql = "UPDATE categoria_producto SET nombre = ? WHERE id = ?";
         try (Connection conn = Conexion.getConexion();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, this.nombre);
-            ps.setString(2, this.descripcion);
-            ps.setInt(3, this.producto_id);
-            ps.setInt(4, this.id);
+            ps.setInt(2, this.id);
             return ps.executeUpdate() > 0;
         }
     }
 
     public boolean eliminar() throws SQLException {
-        String sql = "DELETE FROM recetas WHERE id = ?";
+        String sql = "DELETE FROM categoria_producto WHERE id = ?";
         try (Connection conn = Conexion.getConexion();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, this.id);
@@ -75,36 +62,49 @@ public class DRecetas {
         }
     }
 
-    public static List<DRecetas> listar() throws SQLException {
-        List<DRecetas> lista = new ArrayList<>();
-        String sql = "SELECT * FROM recetas ORDER BY id ASC";
+    public static List<DCategoriaProducto> listar() throws SQLException {
+        List<DCategoriaProducto> lista = new ArrayList<>();
+        String sql = "SELECT * FROM categoria_producto ORDER BY id ASC";
         try (Connection conn = Conexion.getConexion();
              PreparedStatement ps = conn.prepareStatement(sql);
               ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                lista.add(new DRecetas(
+                lista.add(new DCategoriaProducto(
                     rs.getInt("id"),
-                    rs.getString("nombre"),
-                    rs.getString("descripcion"),
-                    rs.getInt("producto_id")
+                    rs.getString("nombre")
                 ));
             }
         }
         return lista;
     }
 
-    public static DRecetas obtenerPorProducto(int productoId) throws SQLException {
-        String sql = "SELECT * FROM recetas WHERE producto_id = ?";
+    public static DCategoriaProducto obtenerPorId(int id) throws SQLException {
+        String sql = "SELECT * FROM categoria_producto WHERE id = ?";
         try (Connection conn = Conexion.getConexion();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, productoId);
+            ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return new DRecetas(
+                    return new DCategoriaProducto(
                         rs.getInt("id"),
-                        rs.getString("nombre"),
-                        rs.getString("descripcion"),
-                        rs.getInt("producto_id")
+                        rs.getString("nombre")
+                    );
+                }
+            }
+        }
+        return null;
+    }
+
+    public static DCategoriaProducto obtenerPorNombre(String nombre) throws SQLException {
+        String sql = "SELECT * FROM categoria_producto WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(?))";
+        try (Connection conn = Conexion.getConexion();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, nombre);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new DCategoriaProducto(
+                        rs.getInt("id"),
+                        rs.getString("nombre")
                     );
                 }
             }

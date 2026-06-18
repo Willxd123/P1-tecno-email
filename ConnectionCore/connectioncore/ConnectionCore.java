@@ -29,21 +29,5 @@ public class ConnectionCore {
         thread.setName("send Email Thread");
         thread.start();
     }
-    /*
-     * MailVerificationThread mail = new MailVerificationThread();
-     * mail.setEmailEventListener(new IEmailEventListener() {
-     * 
-     * @Override
-     * public void onReceiveEmailEvent(List<Email> emails) {
-     * for (Email email : emails) {
-     * System.out.println(email);
-     * }
-     * }
-     * });
-     * 
-     * Thread thread = new Thread(mail);
-     * thread.setName("Mail Verification Thread");
-     * thread.start();
-     * }
-     */
+
 }

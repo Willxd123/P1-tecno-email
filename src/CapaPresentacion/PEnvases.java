@@ -1,28 +1,20 @@
 package CapaPresentacion;
 
-import java.util.List;
+public class PEnvases {
 
-public class PRoles {
-
-    /**
-     * Convierte el resultado plano del negocio de Roles en una vista HTML espectacular.
-     */
     public static String generarHtml(String comando, String resultado) {
-        String tituloModulo = "Gestión de Roles - “CHIFONES PERUANOS ZUZÚ”";
+        String tituloModulo = "Gestión de Envases - “CHIFONES PERUANOS ZUZÚ”";
         StringBuilder bodyHtml = new StringBuilder();
 
         boolean esError = resultado.trim().toLowerCase().startsWith("error");
 
-        // Cabecera del Contenido
         bodyHtml.append("<h2 class=\"card-title\">Comando Procesado: ").append(comando).append("</h2>");
 
         if (resultado.contains("|")) {
-            // Es un listado en formato tabla ASCII, lo parseamos a una tabla HTML premium
             bodyHtml.append(parsearTablaAscii(resultado));
         } else {
-            // Es un mensaje de éxito o de error
             String alertClass = esError ? "alert-error" : "alert-success";
-            String alertTitle = esError ? "OCURRIÓ UN INCONVENIENTE" : "OPERACIÓN EXITOSA";
+            String alertTitle = esError ? "ADVERTENCIA / ERROR" : "OPERACIÓN EXITOSA";
             
             bodyHtml.append("<div class=\"alert ").append(alertClass).append("\">")
                     .append("<strong>").append(alertTitle).append("</strong><br>")
@@ -33,32 +25,33 @@ public class PRoles {
         return construirPlantillaBase(tituloModulo, bodyHtml.toString());
     }
 
-    /**
-     * Parsea una tabla de texto ASCII de NRoles a una tabla HTML estilizada.
-     */
     private static String parsearTablaAscii(String asciiText) {
         String[] lineas = asciiText.split("\n");
         if (lineas.length == 0) {
-            return "<p>No se encontraron datos.</p>";
+            return "<p>No hay datos disponibles.</p>";
         }
 
         StringBuilder htmlTable = new StringBuilder();
-        htmlTable.append("<table>");
+        
+        int startIdx = 0;
+        if (!lineas[0].contains("|") && lineas[0].length() > 0) {
+            htmlTable.append("<h3 style=\"color: #61381c; margin-bottom: 10px;\">").append(lineas[0]).append("</h3>");
+            startIdx = 1;
+        }
 
+        htmlTable.append("<table>");
         boolean esCabecera = true;
 
-        for (String linea : lineas) {
-            linea = linea.trim();
-            // Ignorar líneas separadoras (como -------) o vacías
-            if (linea.isEmpty() || linea.startsWith("---") || linea.startsWith("===") || linea.startsWith("Resultados")) {
+        for (int i = startIdx; i < lineas.length; i++) {
+            String linea = lineas[i].trim();
+            if (linea.isEmpty() || linea.startsWith("---") || linea.startsWith("===")) {
                 continue;
             }
 
             if (!linea.contains("|")) {
-                // Agregar texto suelto como párrafo
                 htmlTable.append("</table><p style=\"font-style: italic; margin-top: 10px;\">")
-                         .append(linea)
-                         .append("</p><table>");
+                          .append(linea)
+                          .append("</p><table>");
                 continue;
             }
 
@@ -72,9 +65,10 @@ public class PRoles {
                     htmlTable.append("<th>").append(celdaText).append("</th>");
                 } else {
                     htmlTable.append("<td>");
-                    // Aplicar badges estilizados según el contenido
-                    if (col == 1) {
-                        htmlTable.append("<span class=\"badge badge-rol\">").append(celdaText).append("</span>");
+                    if (celdaText.equalsIgnoreCase("Pendiente")) {
+                        htmlTable.append("<span class=\"badge badge-no\">PENDIENTE</span>");
+                    } else if (celdaText.equals("0")) {
+                        htmlTable.append("<span style=\"color: #6b7280;\">0</span>");
                     } else {
                         htmlTable.append(celdaText);
                     }
@@ -90,9 +84,6 @@ public class PRoles {
         return htmlTable.toString();
     }
 
-    /**
-     * Plantilla base de diseño premium de repostería con colores HSL caramel/chocolate.
-     */
     private static String construirPlantillaBase(String titulo, String contenido) {
         return "<!DOCTYPE html>\n" +
                "<html>\n" +
@@ -116,7 +107,7 @@ public class PRoles {
                "      border: 1px solid #f0e6df;\n" +
                "    }\n" +
                "    .header {\n" +
-               "      background: linear-gradient(135deg, #61381c, #8b5a2b);\n" +
+               "      background: linear-gradient(135deg, #a27b5c, #3f4e4f);\n" +
                "      padding: 35px 20px;\n" +
                "      text-align: center;\n" +
                "      color: #ffffff;\n" +
@@ -141,7 +132,7 @@ public class PRoles {
                "      font-weight: 600;\n" +
                "      margin-top: 0;\n" +
                "      margin-bottom: 20px;\n" +
-               "      color: #61381c;\n" +
+               "      color: #a27b5c;\n" +
                "      border-bottom: 2px solid #f7efe9;\n" +
                "      padding-bottom: 10px;\n" +
                "    }\n" +
@@ -172,7 +163,7 @@ public class PRoles {
                "      border: 1px solid #eedfd4;\n" +
                "    }\n" +
                "    th {\n" +
-               "      background-color: #8b5a2b;\n" +
+               "      background-color: #a27b5c;\n" +
                "      color: #ffffff;\n" +
                "      font-weight: 600;\n" +
                "      text-align: left;\n" +
@@ -200,10 +191,15 @@ public class PRoles {
                "      font-weight: 600;\n" +
                "      text-align: center;\n" +
                "    }\n" +
-               "    .badge-rol {\n" +
-               "      background-color: #fef3c7;\n" +
-               "      color: #d97706;\n" +
-               "      border: 1px solid #fde68a;\n" +
+               "    .badge-si {\n" +
+               "      background-color: #dcfce7;\n" +
+               "      color: #15803d;\n" +
+               "      border: 1px solid #bbf7d0;\n" +
+               "    }\n" +
+               "    .badge-no {\n" +
+               "      background-color: #fee2e2;\n" +
+               "      color: #b91c1c;\n" +
+               "      border: 1px solid #fca5a5;\n" +
                "    }\n" +
                "    .footer {\n" +
                "      background-color: #fcf8f5;\n" +
@@ -219,7 +215,7 @@ public class PRoles {
                "  <div class=\"container\">\n" +
                "    <div class=\"header\">\n" +
                "      <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuzú Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">\n" +
-               "      <h1>“CHIFONES PERUANOS ZUZÚ”</h1>\n" +
+               "      <h1>CONTROL DE ENVASES RETORNABLES</h1>\n" +
                "      <p>Sistema Automatizado por Correo Electrónico</p>\n" +
                "    </div>\n" +
                "    <div class=\"content\">\n" +

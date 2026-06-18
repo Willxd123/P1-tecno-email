@@ -1,28 +1,20 @@
 package CapaPresentacion;
 
-import java.util.List;
+public class PReportes {
 
-public class PRoles {
-
-    /**
-     * Convierte el resultado plano del negocio de Roles en una vista HTML espectacular.
-     */
     public static String generarHtml(String comando, String resultado) {
-        String tituloModulo = "Gestión de Roles - “CHIFONES PERUANOS ZUZÚ”";
+        String tituloModulo = "Reportes Estadísticos y Gerenciales - “CHIFONES PERUANOS ZUZÚ”";
         StringBuilder bodyHtml = new StringBuilder();
 
         boolean esError = resultado.trim().toLowerCase().startsWith("error");
 
-        // Cabecera del Contenido
-        bodyHtml.append("<h2 class=\"card-title\">Comando Procesado: ").append(comando).append("</h2>");
+        bodyHtml.append("<h2 class=\"card-title\">Reporte Solicitado: ").append(comando).append("</h2>");
 
         if (resultado.contains("|")) {
-            // Es un listado en formato tabla ASCII, lo parseamos a una tabla HTML premium
-            bodyHtml.append(parsearTablaAscii(resultado));
+            bodyHtml.append(parsearTablaAscii(comando, resultado));
         } else {
-            // Es un mensaje de éxito o de error
             String alertClass = esError ? "alert-error" : "alert-success";
-            String alertTitle = esError ? "OCURRIÓ UN INCONVENIENTE" : "OPERACIÓN EXITOSA";
+            String alertTitle = esError ? "ADVERTENCIA / ERROR" : "INFORMACIÓN";
             
             bodyHtml.append("<div class=\"alert ").append(alertClass).append("\">")
                     .append("<strong>").append(alertTitle).append("</strong><br>")
@@ -33,32 +25,45 @@ public class PRoles {
         return construirPlantillaBase(tituloModulo, bodyHtml.toString());
     }
 
-    /**
-     * Parsea una tabla de texto ASCII de NRoles a una tabla HTML estilizada.
-     */
-    private static String parsearTablaAscii(String asciiText) {
+    private static String parsearTablaAscii(String comando, String asciiText) {
         String[] lineas = asciiText.split("\n");
         if (lineas.length == 0) {
-            return "<p>No se encontraron datos.</p>";
+            return "<p>No hay datos disponibles.</p>";
         }
 
         StringBuilder htmlTable = new StringBuilder();
-        htmlTable.append("<table>");
+        int startIdx = 0;
 
+        // Si la primera línea tiene el título del detalle/historial
+        if (!lineas[0].contains("|") && lineas[0].length() > 0) {
+            htmlTable.append("<h3 style=\"color: #1e3a8a; margin-bottom: 10px;\">").append(lineas[0]).append("</h3>");
+            startIdx = 1;
+            // Si la segunda línea también es informativa (ej: totales del reporte de ventas)
+            if (lineas.length > 1 && !lineas[1].contains("|") && !lineas[1].startsWith("---") && lineas[1].length() > 0) {
+                htmlTable.append("<div style=\"margin: 15px 0; padding: 15px; background-color: #eff6ff; border-radius: 12px; border: 1px solid #bfdbfe; font-size: 14px; color: #1e40af;\">")
+                          .append("<strong>Resumen Ejecutivo:</strong><br>")
+                          .append(lineas[1].replace(" | ", "<br>"))
+                          .append("</div>");
+                startIdx = 2;
+            }
+        }
+
+        htmlTable.append("<table>");
         boolean esCabecera = true;
 
-        for (String linea : lineas) {
-            linea = linea.trim();
-            // Ignorar líneas separadoras (como -------) o vacías
-            if (linea.isEmpty() || linea.startsWith("---") || linea.startsWith("===") || linea.startsWith("Resultados")) {
+        for (int i = startIdx; i < lineas.length; i++) {
+            String linea = lineas[i].trim();
+            if (linea.isEmpty() || linea.startsWith("---") || linea.startsWith("===")) {
                 continue;
             }
 
             if (!linea.contains("|")) {
-                // Agregar texto suelto como párrafo
-                htmlTable.append("</table><p style=\"font-style: italic; margin-top: 10px;\">")
-                         .append(linea)
-                         .append("</p><table>");
+                // Si es la línea de resumen de totales
+                htmlTable.append("</table>");
+                htmlTable.append("<div style=\"margin-top: 20px; padding: 15px; background-color: #f0fdf4; border-radius: 12px; border: 1px solid #bbf7d0; font-size: 15px; text-align: right;\">")
+                          .append("<strong style=\"color: #166534;\">").append(linea).append("</strong>")
+                          .append("</div>");
+                htmlTable.append("<table>");
                 continue;
             }
 
@@ -72,9 +77,14 @@ public class PRoles {
                     htmlTable.append("<th>").append(celdaText).append("</th>");
                 } else {
                     htmlTable.append("<td>");
-                    // Aplicar badges estilizados según el contenido
-                    if (col == 1) {
-                        htmlTable.append("<span class=\"badge badge-rol\">").append(celdaText).append("</span>");
+                    // Resaltar alertas de stock critico o cuotas
+                    if (celdaText.matches("^\\d+(\\.\\d+)?$") && col == 2 && comando.equals("CU8-06")) {
+                        // Stock actual bajo
+                        htmlTable.append("<span style=\"color: #b91c1c; font-weight: 600;\">").append(celdaText).append("</span>");
+                    } else if (celdaText.equalsIgnoreCase("CONTADO") || celdaText.equalsIgnoreCase("DEVUELTO")) {
+                        htmlTable.append("<span class=\"badge badge-si\">").append(celdaText.toUpperCase()).append("</span>");
+                    } else if (celdaText.equalsIgnoreCase("CUOTAS") || celdaText.equalsIgnoreCase("CREDITO")) {
+                        htmlTable.append("<span class=\"badge badge-pend\">").append(celdaText.toUpperCase()).append("</span>");
                     } else {
                         htmlTable.append(celdaText);
                     }
@@ -90,9 +100,6 @@ public class PRoles {
         return htmlTable.toString();
     }
 
-    /**
-     * Plantilla base de diseño premium de repostería con colores HSL caramel/chocolate.
-     */
     private static String construirPlantillaBase(String titulo, String contenido) {
         return "<!DOCTYPE html>\n" +
                "<html>\n" +
@@ -101,22 +108,22 @@ public class PRoles {
                "  <style>\n" +
                "    body {\n" +
                "      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;\n" +
-               "      background-color: #fdfaf7;\n" +
-               "      color: #4a3e3d;\n" +
+               "      background-color: #f6f8fa;\n" +
+               "      color: #334155;\n" +
                "      margin: 0;\n" +
                "      padding: 0;\n" +
                "    }\n" +
                "    .container {\n" +
-               "      max-width: 650px;\n" +
+               "      max-width: 750px;\n" +
                "      margin: 40px auto;\n" +
                "      background-color: #ffffff;\n" +
                "      border-radius: 20px;\n" +
                "      overflow: hidden;\n" +
-               "      box-shadow: 0 10px 40px rgba(97, 56, 28, 0.08);\n" +
-               "      border: 1px solid #f0e6df;\n" +
+               "      box-shadow: 0 10px 30px rgba(30, 41, 59, 0.05);\n" +
+               "      border: 1px solid #e2e8f0;\n" +
                "    }\n" +
                "    .header {\n" +
-               "      background: linear-gradient(135deg, #61381c, #8b5a2b);\n" +
+               "      background: linear-gradient(135deg, #1e3a8a, #0f172a);\n" +
                "      padding: 35px 20px;\n" +
                "      text-align: center;\n" +
                "      color: #ffffff;\n" +
@@ -141,8 +148,8 @@ public class PRoles {
                "      font-weight: 600;\n" +
                "      margin-top: 0;\n" +
                "      margin-bottom: 20px;\n" +
-               "      color: #61381c;\n" +
-               "      border-bottom: 2px solid #f7efe9;\n" +
+               "      color: #1e3a8a;\n" +
+               "      border-bottom: 2px solid #e2e8f0;\n" +
                "      padding-bottom: 10px;\n" +
                "    }\n" +
                "    .alert {\n" +
@@ -153,9 +160,9 @@ public class PRoles {
                "      line-height: 1.6;\n" +
                "    }\n" +
                "    .alert-success {\n" +
-               "      background-color: #f0fdf4;\n" +
-               "      border: 1px solid #bbf7d0;\n" +
-               "      color: #166534;\n" +
+               "      background-color: #eff6ff;\n" +
+               "      border: 1px solid #bfdbfe;\n" +
+               "      color: #1e40af;\n" +
                "    }\n" +
                "    .alert-error {\n" +
                "      background-color: #fef2f2;\n" +
@@ -169,10 +176,10 @@ public class PRoles {
                "      margin-top: 15px;\n" +
                "      border-radius: 12px;\n" +
                "      overflow: hidden;\n" +
-               "      border: 1px solid #eedfd4;\n" +
+               "      border: 1px solid #cbd5e1;\n" +
                "    }\n" +
                "    th {\n" +
-               "      background-color: #8b5a2b;\n" +
+               "      background-color: #1e3a8a;\n" +
                "      color: #ffffff;\n" +
                "      font-weight: 600;\n" +
                "      text-align: left;\n" +
@@ -182,15 +189,15 @@ public class PRoles {
                "    }\n" +
                "    td {\n" +
                "      padding: 14px 16px;\n" +
-               "      border-bottom: 1px solid #f7efe9;\n" +
+               "      border-bottom: 1px solid #e2e8f0;\n" +
                "      font-size: 13px;\n" +
-               "      color: #4a3e3d;\n" +
+               "      color: #334155;\n" +
                "    }\n" +
                "    tr:last-child td {\n" +
                "      border-bottom: none;\n" +
                "    }\n" +
                "    tr:nth-child(even) {\n" +
-               "      background-color: #fdfbf9;\n" +
+               "      background-color: #f8fafc;\n" +
                "    }\n" +
                "    .badge {\n" +
                "      display: inline-block;\n" +
@@ -200,18 +207,28 @@ public class PRoles {
                "      font-weight: 600;\n" +
                "      text-align: center;\n" +
                "    }\n" +
-               "    .badge-rol {\n" +
+               "    .badge-si {\n" +
+               "      background-color: #dcfce7;\n" +
+               "      color: #15803d;\n" +
+               "      border: 1px solid #bbf7d0;\n" +
+               "    }\n" +
+               "    .badge-pend {\n" +
                "      background-color: #fef3c7;\n" +
                "      color: #d97706;\n" +
                "      border: 1px solid #fde68a;\n" +
                "    }\n" +
+               "    .badge-no {\n" +
+               "      background-color: #fee2e2;\n" +
+               "      color: #b91c1c;\n" +
+               "      border: 1px solid #fca5a5;\n" +
+               "    }\n" +
                "    .footer {\n" +
-               "      background-color: #fcf8f5;\n" +
+               "      background-color: #f8fafc;\n" +
                "      padding: 25px;\n" +
                "      text-align: center;\n" +
                "      font-size: 12px;\n" +
-               "      color: #8c7b70;\n" +
-               "      border-top: 1px solid #f0e6df;\n" +
+               "      color: #64748b;\n" +
+               "      border-top: 1px solid #e2e8f0;\n" +
                "    }\n" +
                "  </style>\n" +
                "</head>\n" +
@@ -219,15 +236,15 @@ public class PRoles {
                "  <div class=\"container\">\n" +
                "    <div class=\"header\">\n" +
                "      <img src=\"https://i.ibb.co/RpQ8WGhK/bienvenida.png\" alt=\"Chifones Peruanos Zuzú Logo\" style=\"max-height: 80px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;\">\n" +
-               "      <h1>“CHIFONES PERUANOS ZUZÚ”</h1>\n" +
-               "      <p>Sistema Automatizado por Correo Electrónico</p>\n" +
+               "      <h1>REPORTE DE GESTIÓN GERENCIAL</h1>\n" +
+               "      <p>Módulo de Inteligencia de Negocio y Estadísticas</p>\n" +
                "    </div>\n" +
                "    <div class=\"content\">\n" +
                "      " + contenido + "\n" +
                "    </div>\n" +
                "    <div class=\"footer\">\n" +
                "      <strong>Grupo 16 - Tecnología Web (UAGRM)</strong><br>\n" +
-               "      Este es un correo automático, por favor no lo respondas directamente.\n" +
+               "      Este es un correo electrónico confidencial para el propietario del sistema.\n" +
                "    </div>\n" +
                "  </div>\n" +
                "</body>\n" +

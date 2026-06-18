@@ -1,10 +1,10 @@
-package CapaPresentacion.controllers;
+package CapaPresentacion.controladores;
 
 import CapaNegocio.NUsuarios;
 import CapaPresentacion.PUsuarios;
 import java.util.List;
 
-public class UsuarioController {
+public class UsuarioControlador {
     
     /**
      * Retorna verdadero si el comando pertenece al recurso de Usuarios.
@@ -22,7 +22,7 @@ public class UsuarioController {
     }
 
     /**
-     * Procesa la solicitud y enruta al método de negocio correspondiente, devolviendo HTML.
+     * Procesa la solicitud y enruta al mÃ©todo de negocio correspondiente, devolviendo HTML.
      */
     public static String handle(String comando, List<String> parametros) {
         if (comando == null) return "Error: Comando nulo.";
@@ -73,3 +73,4 @@ public class UsuarioController {
         return PUsuarios.generarHtml(comando, rawResult);
     }
 }
+

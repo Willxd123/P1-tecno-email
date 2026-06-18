@@ -9,7 +9,7 @@ package utils;
  *
  * @author ronal
  */
-public class Command {
+public class Comando {
     
     private static final String END = "\r\n";
 

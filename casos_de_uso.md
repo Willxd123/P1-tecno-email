@@ -1,4 +1,4 @@
-## Casos de uso — Sistema de repostería
+## Casos de uso — Sistema de Gestión para “CHIFONES PERUANOS ZUZÚ”
 
 ---
 
@@ -25,6 +25,11 @@ Administración de todos los actores del sistema: propietarios, secretarios y cl
 | CU1-05 | Listar usuarios | ✓ | ✓ | — | Ver el listado completo de usuarios registrados con su rol y estado |
 | CU1-06 | Buscar usuario | ✓ | ✓ | — | Buscar por nombre, apellido o teléfono para acceder rápido al perfil |
 | CU1-07 | Ver perfil propio | ✓ | ✓ | ✓ | Consultar los datos personales del usuario autenticado |
+| CU1-08 | Registrar rol | ✓ | — | — | Registrar un nuevo rol en el sistema |
+| CU1-09 | Editar rol | ✓ | — | — | Modificar el nombre de un rol existente |
+| CU1-10 | Eliminar rol | ✓ | — | — | Eliminar un rol que no esté en uso |
+| CU1-11 | Listar roles | ✓ | — | — | Ver todos los roles disponibles |
+| CU1-12 | Ver rol | ✓ | — | — | Consultar los detalles de un rol |
 
 ---
 
@@ -71,10 +76,11 @@ La cartilla es el historial digital de un cliente. Consolida sus pedidos, montos
 | Código | Nombre | Propietario | Secretario | Cliente | Descripción |
 |---|---|---|---|---|---|
 | CU4-01 | Ver cartilla de un cliente | ✓ | ✓ | ✓ (solo propia) | Mostrar el historial completo de pedidos del cliente con fecha, productos, monto, estado de pago y estado de envases por cada pedido |
-| CU4-02 | Buscar cliente para ver cartilla | ✓ | ✓ | — | Buscar un cliente por nombre, apellido o teléfono para acceder a su cartilla |
-| CU4-03 | Ver detalle de pedido en cartilla | ✓ | ✓ | ✓ (solo propio) | Desde la cartilla consultar el desglose de productos, cantidades, precios y tipo de pago de un pedido específico |
-| CU4-04 | Ver estado de cuotas en cartilla | ✓ | ✓ | ✓ (solo propias) | Desde la cartilla ver el desglose de cuotas de un pedido en crédito: número, monto, vencimiento, fecha de pago y estado |
-| CU4-05 | Ver estado de envases en cartilla | ✓ | ✓ | ✓ (solo propios) | Desde la cartilla ver por cada pedido cuántos envases se prestaron, cuántos se devolvieron y si hay saldo pendiente |
+| CU4-02 | Canjear premio de fidelización | ✓ | ✓ | ✓ (solo propio) | Reclamar un chifón tradicional gratis tras haber acumulado 10 compras y devuelto 10 envases en su cartilla |
+| CU4-03 | Buscar cliente para ver cartilla | ✓ | ✓ | — | Buscar un cliente por nombre, apellido o teléfono para acceder a su cartilla |
+| CU4-04 | Ver detalle de pedido en cartilla | ✓ | ✓ | ✓ (solo propio) | Desde la cartilla consultar el desglose de productos, cantidades, precios y tipo de pago de un pedido específico |
+| CU4-05 | Ver estado de cuotas en cartilla | ✓ | ✓ | ✓ (solo propias) | Desde la cartilla ver el desglose de cuotas de un pedido en crédito: número, monto, vencimiento, fecha de pago y estado |
+| CU4-06 | Ver estado de envases en cartilla | ✓ | ✓ | ✓ (solo propios) | Desde la cartilla ver por cada pedido cuántos envases se prestaron, cuántos se devolvieron y si hay saldo pendiente |
 
 ---
 
@@ -84,12 +90,14 @@ Administración del catálogo de productos disponibles para la venta.
 
 | Código | Nombre | Propietario | Secretario | Cliente | Descripción |
 |---|---|---|---|---|---|
-| CU5-01 | Registrar producto | ✓ | ✓ | — | Agregar un nuevo producto al catálogo con nombre, descripción y precio unitario |
-| CU5-02 | Editar producto | ✓ | ✓ | — | Modificar nombre, descripción o precio de un producto existente |
+| CU5-01 | Registrar producto | ✓ | ✓ | — | Agregar un nuevo producto al catálogo con nombre, descripción, precio unitario y categoría opcional |
+| CU5-02 | Editar producto | ✓ | ✓ | — | Modificar nombre, descripción, precio o categoría de un producto existente |
 | CU5-03 | Activar o desactivar producto | ✓ | ✓ | — | Cambiar el campo `disponible` para ocultar o mostrar un producto sin eliminarlo |
-| CU5-04 | Listar productos disponibles | ✓ | ✓ | ✓ | Ver el catálogo de productos activos con nombre, descripción y precio actual |
+| CU5-04 | Listar productos disponibles | ✓ | ✓ | ✓ | Ver el catálogo de productos activos con nombre, descripción, precio y categoría |
 | CU5-05 | Ver costo de producción de producto | ✓ | — | — | Calcular el costo total de insumos que requiere producir una unidad del producto en base a su receta y `costo_unitario` de cada insumo |
 | CU5-06 | Verificar disponibilidad de insumos | ✓ | ✓ | — | Antes de confirmar un pedido verificar si hay stock suficiente de todos los insumos de la receta para la cantidad solicitada |
+| CU5-07 | Registrar categoría | ✓ | — | — | Crear una nueva categoría para agrupar los productos |
+| CU5-08 | Listar categorías | ✓ | ✓ | ✓ | Ver el listado de todas las categorías de producto registradas |
 
 ---
 
@@ -114,11 +122,11 @@ Registro y seguimiento de pagos al contado y en crédito con 2 o más cuotas.
 
 | Código | Nombre | Propietario | Secretario | Cliente | Descripción |
 |---|---|---|---|---|---|
-| CU7-01 | Registrar pago al contado | ✓ | ✓ | — | Al confirmar el pedido registrar el pago completo inmediato. El pedido pasa automáticamente a estado `pagado` |
-| CU7-02 | Registrar pago en cuotas | ✓ | ✓ | — | Al confirmar el pedido definir el número de cuotas, el monto de cada una y las fechas de vencimiento. Se generan los registros en `cuotas` |
-| CU7-03 | Registrar pago de una cuota | ✓ | ✓ | — | Marcar una cuota específica como pagada registrando la `fecha_pago` y actualizando `pagado = true`. Si es la última cuota el pedido pasa a `pagado` |
-| CU7-04 | Ver estado de cuotas de un pedido | ✓ | ✓ | ✓ (solo propias) | Consultar el plan de cuotas de un pedido en crédito: número de cuota, monto, fecha de vencimiento, fecha de pago y estado |
-| CU7-05 | Ver cuotas vencidas | ✓ | ✓ | — | Listar todas las cuotas cuya `fecha_vencimiento` ya pasó y `pagado = false`, agrupadas por cliente para gestionar cobros |
+| CU7-01 | Registrar pago de una cuota | ✓ | ✓ | — | Marcar una cuota específica como pagada registrando la `fecha_pago` y actualizando `pagado = true`. Si es la última cuota el pedido pasa a `pagado` |
+| CU7-02 | Ver estado de cuotas de un pedido | ✓ | ✓ | ✓ (solo propias) | Consultar el plan de cuotas de un pedido en crédito: número de cuota, monto, fecha de vencimiento, fecha de pago y estado |
+| CU7-03 | Ver cuotas vencidas | ✓ | ✓ | — | Listar todas las cuotas cuya `fecha_vencimiento` ya pasó y `pagado = false`, agrupadas por cliente para gestionar cobros |
+| CU7-04 | Registrar pago al contado | ✓ | ✓ | — | Al confirmar el pedido registrar el pago completo inmediato. El pedido pasa automáticamente a estado `pagado` |
+| CU7-05 | Registrar pago en cuotas | ✓ | ✓ | — | Al confirmar el pedido definir el número de cuotas, el monto de cada una y las fechas de vencimiento. Se generan los registros en `cuotas` |
 | CU7-06 | Ver cuotas próximas a vencer | ✓ | ✓ | — | Listar las cuotas que vencen en los próximos N días para anticipar cobros y notificar clientes |
 | CU7-07 | Ver resumen de pagos de un cliente | ✓ | ✓ | ✓ (solo propio) | Consultar el total pagado, el total pendiente y el detalle de pagos de un cliente específico |
 
@@ -140,13 +148,11 @@ Consultas gerenciales para toma de decisiones. Solo disponibles para el propieta
 | CU8-08 | Reporte de clientes frecuentes | ✓ | — | — | Ranking de clientes por número de pedidos y monto total comprado en un período |
 | CU8-09 | Reporte de productos más vendidos | ✓ | — | — | Ranking de productos por unidades vendidas y monto generado en un período |
 
----
-
 ## Matriz general de acceso
 
 | Módulo | Propietario | Secretario | Cliente |
 |---|---|---|---|
-| CU1 Gestión de usuarios | Acceso total | Registrar y editar clientes | Solo perfil propio |
+| CU1 Gestión de usuarios y roles | Acceso total | Registrar y editar clientes | Solo perfil propio |
 | CU2 Gestión de insumos | Acceso total | Sin ajustes manuales de stock | Sin acceso |
 | CU3 Gestión de envases | Acceso total | Sin crear tipos de envase | Solo historial propio |
 | CU4 Gestión de cartilla | Acceso total | Acceso total | Solo cartilla propia |
